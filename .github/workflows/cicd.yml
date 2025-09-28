@@ -70,6 +70,7 @@ jobs:
             deploy/nginx.conf
           target: ~/islab
 
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
