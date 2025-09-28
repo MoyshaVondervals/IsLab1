@@ -77,6 +77,7 @@ jobs:
             deploy/nginx.conf
           target: ~/islab
 
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -88,7 +89,7 @@ jobs:
             set -e
             mkdir -p ~/islab
             cd ~/islab
-
+            
             cat > .env <<EOF
             IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
             PG_USER=${{ secrets.PG_USER }}
