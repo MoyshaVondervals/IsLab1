@@ -10,7 +10,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  # необязательный дефолт, будет перезаписан шагом Compute IMAGE_PREFIX
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -63,7 +62,7 @@ jobs:
         run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Debug repo contents
-        run: ls -R .
+        run: pwd && ls -R .
 
       - name: Copy deploy files
         uses: appleboy/scp-action@v0.1.7
@@ -77,7 +76,6 @@ jobs:
             deploy/nginx.conf
           target: ~/islab
 
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -89,7 +87,7 @@ jobs:
             set -e
             mkdir -p ~/islab
             cd ~/islab
-            
+
             cat > .env <<EOF
             IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
             PG_USER=${{ secrets.PG_USER }}
