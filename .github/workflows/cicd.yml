@@ -41,8 +41,8 @@ jobs:
       - name: Build & push frontend
         uses: docker/build-push-action@v6
         with:
-          context: frontend
-          file: frontend/Dockerfile.frontend
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}/frontend:latest
@@ -56,6 +56,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           source: "deploy/docker-compose.yaml,deploy/nginx.conf"
@@ -65,6 +66,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
@@ -72,7 +74,7 @@ jobs:
             mkdir -p ~/islab
             cd ~/islab
 
-            cat > .env <<'EOF'
+            cat > .env <<EOF
   IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
   PG_USER=${{ secrets.PG_USER }}
   PG_PASSWORD=${{ secrets.PG_PASSWORD }}
