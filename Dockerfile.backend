@@ -1,27 +1,26 @@
-# ===== build =====
-FROM gradle:8.8-jdk21-alpine AS build
+# ===== build (JDK 19) =====
+FROM eclipse-temurin:19-jdk AS build
 WORKDIR /app
 
-# 1) сначала обёртка gradle + конфиги (чтоб кэшировалось)
+# wrapper + конфиги отдельно (лучше кэш)
 COPY gradlew ./gradlew
 COPY gradle ./gradle
 COPY settings.gradle.kts ./settings.gradle.kts
 COPY build.gradle.kts ./build.gradle.kts
-# (если есть) COPY gradle.properties ./gradle.properties
+# если есть gradle.properties:
+# COPY gradle.properties ./gradle.properties
 
-# 2) права на исполнимый файл
 RUN chmod +x ./gradlew
-
-# 3) прогреть зависимости (кэш)
 RUN ./gradlew --no-daemon -v
-RUN ./gradlew --no-daemon build -x test || true
 
-# 4) теперь копируем исходники и собираем jar
+# исходники
 COPY src ./src
-RUN ./gradlew --no-daemon clean bootJar -x test --stacktrace
 
-# ===== runtime =====
-FROM eclipse-temurin:21-jre-alpine
+# детальный лог, отключаем тесты
+RUN ./gradlew --no-daemon clean bootJar -x test --stacktrace --info --warning-mode=all
+
+# ===== runtime (JRE 19) =====
+FROM eclipse-temurin:19-jre
 WORKDIR /app
 COPY --from=build /app/build/libs/*.jar /app/app.jar
 ENV JAVA_OPTS=""
