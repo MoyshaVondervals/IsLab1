@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: IsLab1
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  task:
+    scheduling:
+      enabled: true
+
+token:
+  signing:
+    key: NjU0MzIxMDEwMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY=
+
+
