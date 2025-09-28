@@ -58,12 +58,8 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Verify deploy files exist
-        run: |
-          ls -la
-          ls -la deploy
-          test -f deploy/docker-compose.yaml
-          test -f deploy/nginx.conf
+      - name: Debug repo contents
+        run: ls -R .
 
       - name: Copy deploy files
         uses: appleboy/scp-action@v0.1.7
@@ -72,10 +68,10 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
-          source: "deploy/docker-compose.yaml,deploy/nginx.conf"
-          target: "~/islab"
-          overwrite: true
+          source: |
+            deploy/docker-compose.yaml
+            deploy/nginx.conf
+          target: ~/islab
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -84,7 +80,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
           script: |
             set -e
             mkdir -p ~/islab
@@ -95,8 +90,8 @@ jobs:
             PG_USER=${{ secrets.PG_USER }}
             PG_PASSWORD=${{ secrets.PG_PASSWORD }}
             EOF
-
+            
             echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
+            
             docker compose -f docker-compose.yaml pull
             docker compose -f docker-compose.yaml up -d --remove-orphans
