@@ -1,235 +1,312 @@
-deploy:
-  needs: build-and-push
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
+name: CI-CD
 
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: islab-artifacts
-        path: artifacts
+on:
+  push:
+    branches: [ "main" ]
 
-    - name: Install sshpass & openssh-client
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends sshpass openssh-client
+permissions:
+  contents: read
+  packages: write
 
-    - name: Upload backend jar and frontend build
-      env:
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_PORT: ${{ secrets.SSH_PORT }}
-        SSH_USER: ${{ secrets.SSH_USER }}
-        SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-      run: |
-        set -e
-        sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" 'mkdir -p ~/islab/backend ~/islab/frontend ~/islab/bin ~/islab/proxy ~/islab/logs ~/islab/run'
-        sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no artifacts/backend/app.jar  "$SSH_USER@$SSH_HOST:~/islab/backend/app.jar"
-        sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no -r artifacts/frontend/*   "$SSH_USER@$SSH_HOST:~/islab/frontend/"
+env:
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
-    - name: Upload run scripts (nohup + PID files, no tmux)
-      env:
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_PORT: ${{ secrets.SSH_PORT }}
-        SSH_USER: ${{ secrets.SSH_USER }}
-        SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-        PG_USER: ${{ secrets.PG_USER }}
-        PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-      run: |
-        set -e
-        sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
-        set -e
-        mkdir -p "$HOME/islab/bin" "$HOME/islab/logs" "$HOME/islab/run" "$HOME/islab/proxy"
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-        # ---------- backend ----------
-        cat > "$HOME/islab/bin/start_backend.sh" <<'EOB'
-        #!/usr/bin/env bash
-        set -e
-        DIR="$HOME/islab/backend"
-        RUN="$HOME/islab/run"
-        LOG="$HOME/islab/logs/backend.out"
-        PIDF="$RUN/backend.pid"
+      # Backend: сборка jar (без тестов)
+      - name: Set up JDK 19
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "19"
 
-        # если уже запущен — остановим
-        if [ -f "$PIDF" ] && ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
-          echo "backend already running with PID $(cat "$PIDF")"
-          exit 0
-        fi
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-        cd "$DIR"
-        SPRING_PROFILES_ACTIVE=prod PG_USER='${PG_USER}' PG_PASSWORD='${PG_PASSWORD}' JAVA_OPTS='' \
-          nohup java -jar app.jar --server.port=8080 >>"$LOG" 2>&1 &
-        echo $! > "$PIDF"
-        disown || true
-        echo "backend started, PID $(cat "$PIDF"), log: $LOG"
-        EOB
-        chmod +x "$HOME/islab/bin/start_backend.sh"
+      - name: Build backend bootJar
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon clean bootJar -x test --stacktrace --info
+          ls -la build/libs
 
-        cat > "$HOME/islab/bin/stop_backend.sh" <<'EOB'
-        #!/usr/bin/env bash
-        set -e
-        PIDF="$HOME/islab/run/backend.pid"
-        if [ -f "$PIDF" ]; then
-          PID=$(cat "$PIDF")
-          if ps -p "$PID" >/dev/null 2>&1; then
-            kill "$PID" || true
-            sleep 2
-            ps -p "$PID" >/dev/null 2>&1 && kill -9 "$PID" || true
-          fi
-          rm -f "$PIDF"
-          echo "backend stopped"
-        else
-          # про запас: убьём по команде
-          pkill -f 'java -jar app.jar --server.port=8080' >/dev/null 2>&1 || true
-          echo "backend was not running"
-        fi
-        EOB
-        chmod +x "$HOME/islab/bin/stop_backend.sh"
+      - name: Collect backend artifact as app.jar
+        run: |
+          JAR_PATH=$(ls -1 build/libs/*.jar | head -n1)
+          if [ -z "$JAR_PATH" ]; then echo "Jar not found"; exit 1; fi
+          mkdir -p artifacts/backend
+          cp "$JAR_PATH" artifacts/backend/app.jar
 
-        # ---------- proxy ----------
-        # express сервер + прокси /api -> 127.0.0.1:8080
-        cat > "$HOME/islab/proxy/server.js" <<'EON'
-        const path = require('path');
-        const express = require('express');
-        const { createProxyMiddleware } = require('http-proxy-middleware');
-        const app = express();
-        const FRONT_DIR = path.join(process.env.HOME, 'islab', 'frontend');
-        const API_TARGET = 'http://127.0.0.1:8080';
-        app.use('/api', createProxyMiddleware({ target: API_TARGET, changeOrigin: true, pathRewrite: {'^/api':'/api'} }));
-        app.use(express.static(FRONT_DIR));
-        app.get('*', (req,res)=>res.sendFile(path.join(FRONT_DIR,'index.html')));
-        const port = process.env.PORT || 3000;
-        app.listen(port, ()=>console.log('proxy+static on :'+port));
-        EON
+      # Frontend: сборка статики — важная правка: CI=false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-        cat > "$HOME/islab/bin/start_proxy.sh" <<'EOP'
-        #!/usr/bin/env bash
-        set -e
-        RUN="$HOME/islab/run"
-        LOG="$HOME/islab/logs/proxy.out"
-        PIDF="$RUN/proxy.pid"
-        PROXY_DIR="$HOME/islab/proxy"
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
 
-        # если уже запущен — выходим
-        if [ -f "$PIDF" ] && ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
-          echo "proxy already running with PID $(cat "$PIDF")"
-          exit 0
-        fi
+      - name: Build frontend (treat warnings not as errors)
+        working-directory: frontend
+        run: |
+          CI=false npm run build
+        # Альтернатива: DISABLE_ESLINT_PLUGIN=true npm run build
 
-        # 1) Node доступен -> Express
-        if command -v node >/dev/null 2>&1; then
-          cd "$PROXY_DIR"
-          [ -f package.json ] || npm init -y >/dev/null 2>&1
-          npm ls express >/dev/null 2>&1 || npm i express http-proxy-middleware >/dev/null 2>&1
-          nohup node "$PROXY_DIR/server.js" >>"$LOG" 2>&1 &
-          echo $! > "$PIDF"
-          disown || true
-          echo "proxy (Node/express) started, PID $(cat "$PIDF"), log: $LOG"
-          exit 0
-        fi
+      - name: Collect frontend artifact
+        run: |
+          mkdir -p artifacts/frontend
+          cp -r frontend/build/* artifacts/frontend/
 
-        # 2) Node нет -> Caddy (скачаем в $HOME/bin, без sudo)
-        mkdir -p "$HOME/bin"
-        if [ ! -x "$HOME/bin/caddy" ]; then
-          ARCH=$(uname -m)
-          if [ "$ARCH" = "x86_64" ]; then
-            URL="https://caddyserver.com/api/download?os=linux&arch=amd64&p=http.handlers.reverse_proxy"
-          elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-            URL="https://caddyserver.com/api/download?os=linux&arch=arm64&p=http.handlers.reverse_proxy"
-          else
-            # 3) Совсем без прокси — чистый статика сервер на python
-            nohup bash -c "cd \$HOME/islab/frontend && python3 -m http.server 3000" >>"$LOG" 2>&1 &
-            echo $! > "$PIDF"
-            disown || true
-            echo "static on :3000 via python (NO /api proxy), PID $(cat "$PIDF"), log: $LOG"
+      - name: Upload artifacts (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: islab-artifacts
+          path: artifacts
+          retention-days: 5
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: islab-artifacts
+          path: artifacts
+
+      - name: Install sshpass & openssh-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sshpass openssh-client
+
+      - name: Upload backend jar and frontend build
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -e
+          sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" 'mkdir -p ~/islab/backend ~/islab/frontend ~/islab/bin ~/islab/proxy ~/islab/logs ~/islab/run'
+          sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no artifacts/backend/app.jar  "$SSH_USER@$SSH_HOST:~/islab/backend/app.jar"
+          sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no -r artifacts/frontend/*   "$SSH_USER@$SSH_HOST:~/islab/frontend/"
+
+      - name: Upload run scripts (nohup + PID files, no tmux)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+        run: |
+          set -e
+          sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
+          set -e
+          mkdir -p "$HOME/islab/bin" "$HOME/islab/logs" "$HOME/islab/run" "$HOME/islab/proxy"
+
+          # ---------- backend ----------
+          cat > "$HOME/islab/bin/start_backend.sh" <<'EOB'
+          #!/usr/bin/env bash
+          set -e
+          DIR="$HOME/islab/backend"
+          RUN="$HOME/islab/run"
+          LOG="$HOME/islab/logs/backend.out"
+          PIDF="$RUN/backend.pid"
+
+          # если уже запущен — остановим
+          if [ -f "$PIDF" ] && ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
+            echo "backend already running with PID $(cat "$PIDF")"
             exit 0
           fi
-          curl -fsSL "$URL" -o /tmp/caddy.tar.gz
-          tar -xzf /tmp/caddy.tar.gz -C "$HOME/bin"
-          chmod +x "$HOME/bin/caddy"
-        fi
 
-        # Caddyfile
-        cat > "$HOME/islab/proxy/Caddyfile" <<'CF'
-        :3000
-        root * ~/islab/frontend
-        file_server
-        handle_path /api/* {
-          reverse_proxy 127.0.0.1:8080
-        }
-        @spa {
-          not path /api/*
-          file { try_files {path} /index.html }
-        }
-        route {
-          handle @spa {
-            rewrite * /index.html
-            file_server
-          }
-        }
-        CF
-        nohup "$HOME/bin/caddy" run --config "$HOME/islab/proxy/Caddyfile" --adapter caddyfile >>"$LOG" 2>&1 &
-        echo $! > "$PIDF"
-        disown || true
-        echo "proxy (Caddy) started, PID $(cat "$PIDF"), log: $LOG"
-        EOP
-        chmod +x "$HOME/islab/bin/start_proxy.sh"
+          cd "$DIR"
+          SPRING_PROFILES_ACTIVE=prod PG_USER='${PG_USER}' PG_PASSWORD='${PG_PASSWORD}' JAVA_OPTS='' \
+            nohup java -jar app.jar --server.port=8080 >>"$LOG" 2>&1 &
+          echo $! > "$PIDF"
+          disown || true
+          echo "backend started, PID $(cat "$PIDF"), log: $LOG"
+          EOB
+          chmod +x "$HOME/islab/bin/start_backend.sh"
 
-        cat > "$HOME/islab/bin/stop_proxy.sh" <<'EOP'
-        #!/usr/bin/env bash
-        set -e
-        PIDF="$HOME/islab/run/proxy.pid"
-        if [ -f "$PIDF" ]; then
-          PID=$(cat "$PIDF")
-          if ps -p "$PID" >/dev/null 2>&1; then
-            kill "$PID" || true
-            sleep 2
-            ps -p "$PID" >/dev/null 2>&1 && kill -9 "$PID" || true
-          fi
-          rm -f "$PIDF"
-          echo "proxy stopped"
-        else
-          pkill -f 'node .*server.js' >/dev/null 2>&1 || true
-          pkill -f 'caddy run --config' >/dev/null 2>&1 || true
-          pkill -f 'python3 -m http.server 3000' >/dev/null 2>&1 || true
-          echo "proxy was not running"
-        fi
-        EOP
-        chmod +x "$HOME/islab/bin/stop_proxy.sh"
-
-        echo "Scripts installed to ~/islab/bin (nohup-based)."
-        EOSH
-
-    - name: Restart app (backend+proxy) [nohup]
-      env:
-        SSH_HOST: ${{ secrets.SSH_HOST }}
-        SSH_PORT: ${{ secrets.SSH_PORT }}
-        SSH_USER: ${{ secrets.SSH_USER }}
-        SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-      run: |
-        set -e
-        sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
-        set -e
-        ~/islab/bin/stop_backend.sh || true
-        ~/islab/bin/stop_proxy.sh || true
-        ~/islab/bin/start_backend.sh
-        ~/islab/bin/start_proxy.sh
-
-        echo "== PIDs =="
-        for p in backend proxy; do
-          if [ -f "$HOME/islab/run/$p.pid" ]; then
-            PID=$(cat "$HOME/islab/run/$p.pid")
-            echo "$p: PID=$PID"
+          cat > "$HOME/islab/bin/stop_backend.sh" <<'EOB'
+          #!/usr/bin/env bash
+          set -e
+          PIDF="$HOME/islab/run/backend.pid"
+          if [ -f "$PIDF" ]; then
+            PID=$(cat "$PIDF")
+            if ps -p "$PID" >/dev/null 2>&1; then
+              kill "$PID" || true
+              sleep 2
+              ps -p "$PID" >/dev/null 2>&1 && kill -9 "$PID" || true
+            fi
+            rm -f "$PIDF"
+            echo "backend stopped"
           else
-            echo "$p: PID file missing"
+            # про запас: убьём по команде
+            pkill -f 'java -jar app.jar --server.port=8080' >/dev/null 2>&1 || true
+            echo "backend was not running"
           fi
-        done
-        EOSH
+          EOB
+          chmod +x "$HOME/islab/bin/stop_backend.sh"
 
-    - name: Show endpoints info
-      run: |
-        echo "======================================="
-        echo "Frontend (user-space): http://<HOST>:3000"
-        echo "Backend (Spring Boot): http://<HOST>:8080"
-        echo "Логи: ~/islab/logs/backend.out и ~/islab/logs/proxy.out на сервере"
-        echo "======================================="
+          # ---------- proxy ----------
+          # express сервер + прокси /api -> 127.0.0.1:8080
+          cat > "$HOME/islab/proxy/server.js" <<'EON'
+          const path = require('path');
+          const express = require('express');
+          const { createProxyMiddleware } = require('http-proxy-middleware');
+          const app = express();
+          const FRONT_DIR = path.join(process.env.HOME, 'islab', 'frontend');
+          const API_TARGET = 'http://127.0.0.1:8080';
+          app.use('/api', createProxyMiddleware({ target: API_TARGET, changeOrigin: true, pathRewrite: {'^/api':'/api'} }));
+          app.use(express.static(FRONT_DIR));
+          app.get('*', (req,res)=>res.sendFile(path.join(FRONT_DIR,'index.html')));
+          const port = process.env.PORT || 3000;
+          app.listen(port, ()=>console.log('proxy+static on :'+port));
+          EON
+
+          cat > "$HOME/islab/bin/start_proxy.sh" <<'EOP'
+          #!/usr/bin/env bash
+          set -e
+          RUN="$HOME/islab/run"
+          LOG="$HOME/islab/logs/proxy.out"
+          PIDF="$RUN/proxy.pid"
+          PROXY_DIR="$HOME/islab/proxy"
+
+          # если уже запущен — выходим
+          if [ -f "$PIDF" ] && ps -p "$(cat "$PIDF")" >/dev/null 2>&1; then
+            echo "proxy already running with PID $(cat "$PIDF")"
+            exit 0
+          fi
+
+          # 1) Node доступен -> Express
+          if command -v node >/dev/null 2>&1; then
+            cd "$PROXY_DIR"
+            [ -f package.json ] || npm init -y >/dev/null 2>&1
+            npm ls express >/dev/null 2>&1 || npm i express http-proxy-middleware >/dev/null 2>&1
+            nohup node "$PROXY_DIR/server.js" >>"$LOG" 2>&1 &
+            echo $! > "$PIDF"
+            disown || true
+            echo "proxy (Node/express) started, PID $(cat "$PIDF"), log: $LOG"
+            exit 0
+          fi
+
+          # 2) Node нет -> Caddy (скачаем в $HOME/bin, без sudo)
+          mkdir -p "$HOME/bin"
+          if [ ! -x "$HOME/bin/caddy" ]; then
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "x86_64" ]; then
+              URL="https://caddyserver.com/api/download?os=linux&arch=amd64&p=http.handlers.reverse_proxy"
+            elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+              URL="https://caddyserver.com/api/download?os=linux&arch=arm64&p=http.handlers.reverse_proxy"
+            else
+              # 3) Совсем без прокси — чистый статика сервер на python
+              nohup bash -c "cd \$HOME/islab/frontend && python3 -m http.server 3000" >>"$LOG" 2>&1 &
+              echo $! > "$PIDF"
+              disown || true
+              echo "static on :3000 via python (NO /api proxy), PID $(cat "$PIDF"), log: $LOG"
+              exit 0
+            fi
+            curl -fsSL "$URL" -o /tmp/caddy.tar.gz
+            tar -xzf /tmp/caddy.tar.gz -C "$HOME/bin"
+            chmod +x "$HOME/bin/caddy"
+          fi
+
+          # Caddyfile
+          cat > "$HOME/islab/proxy/Caddyfile" <<'CF'
+          :3000
+          root * ~/islab/frontend
+          file_server
+          handle_path /api/* {
+            reverse_proxy 127.0.0.1:8080
+          }
+          @spa {
+            not path /api/*
+            file { try_files {path} /index.html }
+          }
+          route {
+            handle @spa {
+              rewrite * /index.html
+              file_server
+            }
+          }
+          CF
+          nohup "$HOME/bin/caddy" run --config "$HOME/islab/proxy/Caddyfile" --adapter caddyfile >>"$LOG" 2>&1 &
+          echo $! > "$PIDF"
+          disown || true
+          echo "proxy (Caddy) started, PID $(cat "$PIDF"), log: $LOG"
+          EOP
+          chmod +x "$HOME/islab/bin/start_proxy.sh"
+
+          cat > "$HOME/islab/bin/stop_proxy.sh" <<'EOP'
+          #!/usr/bin/env bash
+          set -e
+          PIDF="$HOME/islab/run/proxy.pid"
+          if [ -f "$PIDF" ]; then
+            PID=$(cat "$PIDF")
+            if ps -p "$PID" >/dev/null 2>&1; then
+              kill "$PID" || true
+              sleep 2
+              ps -p "$PID" >/dev/null 2>&1 && kill -9 "$PID" || true
+            fi
+            rm -f "$PIDF"
+            echo "proxy stopped"
+          else
+            pkill -f 'node .*server.js' >/dev/null 2>&1 || true
+            pkill -f 'caddy run --config' >/dev/null 2>&1 || true
+            pkill -f 'python3 -m http.server 3000' >/dev/null 2>&1 || true
+            echo "proxy was not running"
+          fi
+          EOP
+          chmod +x "$HOME/islab/bin/stop_proxy.sh"
+
+          echo "Scripts installed to ~/islab/bin (nohup-based)."
+          EOSH
+
+      - name: Restart app (backend+proxy) [nohup]
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -e
+          sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
+          set -e
+          ~/islab/bin/stop_backend.sh || true
+          ~/islab/bin/stop_proxy.sh || true
+          ~/islab/bin/start_backend.sh
+          ~/islab/bin/start_proxy.sh
+
+          echo "== PIDs =="
+          for p in backend proxy; do
+            if [ -f "$HOME/islab/run/$p.pid" ]; then
+              PID=$(cat "$HOME/islab/run/$p.pid")
+              echo "$p: PID=$PID"
+            else
+              echo "$p: PID file missing"
+            fi
+          done
+          EOSH
+
+      - name: Show endpoints info
+        run: |
+          echo "======================================="
+          echo "Frontend (user-space): http://<HOST>:3000"
+          echo "Backend (Spring Boot): http://<HOST>:8080"
+          echo "Логи: ~/islab/logs/backend.out и ~/islab/logs/proxy.out на сервере"
+          echo "======================================="
