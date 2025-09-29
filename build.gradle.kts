@@ -10,7 +10,7 @@ description = "IsLab1"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(19)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
