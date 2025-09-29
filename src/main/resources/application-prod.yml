@@ -1,17 +1,31 @@
+server:
+  port: 18080
+
 spring:
+  application:
+    name: IsLab1
   datasource:
     url: jdbc:postgresql://pg:5432/studs
     username: ${PG_USER}
     password: ${PG_PASSWORD}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
-      hibernate.dialect: org.hibernate.dialect.PostgreSQLDialect
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
+      hibernate:
+        format_sql: true
+    show-sql: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
-server:
-  port: 8080
+# если у тебя Flyway — он сам возьмёт spring.datasource.*
+flyway:
+  enabled: true
+  locations: classpath:db/migration
+
+token:
+  signing:
+    key: NjU0MzIxMDEwMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY=

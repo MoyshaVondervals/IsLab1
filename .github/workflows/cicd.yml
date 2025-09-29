@@ -6,80 +6,101 @@ on:
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+  packages: read
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute IMAGE_PREFIX (lowercase)
-        run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      # ===== Backend build (Gradle) =====
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
+          java-version: "21"
 
-      - name: Build & push backend
-        uses: docker/build-push-action@v6
+      - name: Cache Gradle
+        uses: actions/cache@v4
         with:
-          context: .
-          file: Dockerfile.backend
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/backend:latest
-            ${{ env.IMAGE_PREFIX }}/backend:${{ github.sha }}
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Build & push frontend
-        uses: docker/build-push-action@v6
+      - name: Build backend jar
+        run: |
+          ./gradlew --no-daemon clean bootJar -x test
+          ls -la build/libs
+      - name: Copy backend artifact
+        run: |
+          mkdir -p out/backend
+          cp build/libs/*.jar out/backend/app.jar
+
+      # ===== Frontend build (React) =====
+      - name: Use Node 20
+        uses: actions/setup-node@v4
         with:
-          context: .
-          file: frontend/Dockerfile.frontend
-          push: true
-          tags: |
-            ${{ env.IMAGE_PREFIX }}/frontend:latest
-            ${{ env.IMAGE_PREFIX }}/frontend:${{ github.sha }}
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          ls -la build
+
+      - name: Copy frontend artifacts
+        run: |
+          mkdir -p out/frontend
+          cp -R frontend/build/* out/frontend/
+
+      # ===== Пакуем в один архив для деплоя =====
+      - name: Pack release
+        run: |
+          mkdir -p out/deploy
+          cp deploy/nginx.conf out/deploy/nginx.conf || true
+          # (nginx нам больше не обязателен, но пусть лежит)
+          tar -C out -czf release.tgz backend frontend deploy
+          ls -la release.tgz
+
+      - name: Upload build as artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.tgz
 
   deploy:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Compute IMAGE_PREFIX (lowercase)
-        run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release
+          path: .
 
-      - name: Debug repo contents
-        run: |
-          pwd && ls -la
-          ls -la deploy
-          test -f deploy/docker-compose.yaml
-          test -f deploy/nginx.conf
-
-      - name: Copy deploy files (SSH key)
+      # Копируем архив на Helios по SSH-ключу
+      - name: Upload to Helios
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}      # helios.cs.ifmo.ru
-          port: ${{ secrets.SSH_PORT }}      # 2222
-          username: ${{ secrets.SSH_USER }}  # s409361
-          key: ${{ secrets.SSH_KEY }}        # ПОЛНЫЙ приватный ключ
-          source: "deploy/*"
-          target: ~/islab
+          host: ${{ secrets.SSH_HOST }}     # helios.cs.ifmo.ru
+          port: ${{ secrets.SSH_PORT }}     # 2222
+          username: ${{ secrets.SSH_USER }} # s409361
+          key: ${{ secrets.SSH_KEY }}       # приватный ключ БЕЗ пароля
+          source: "release.tgz"
+          target: "~/islab"
           overwrite: true
 
-      - name: Deploy via SSH (SSH key)
+      # Разворачиваем и запускаем Spring Boot как сервис-процесс
+      - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -91,13 +112,34 @@ jobs:
             mkdir -p ~/islab
             cd ~/islab
 
+            # 1) распаковать релиз
+            rm -rf backend frontend deploy_new
+            mkdir -p deploy_new
+            tar -xzf release.tgz
+
+            # 2) подготовить структуру
+            mkdir -p app www logs
+            mv -f backend/app.jar app/app.jar
+            rm -rf www/*
+            cp -R frontend/* www/
+
+            # 3) записать .env с кредами БД и префиксом образов (не нужен теперь, но пусть будет)
             cat > .env <<EOF
-            IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
             PG_USER=${{ secrets.PG_USER }}
             PG_PASSWORD=${{ secrets.PG_PASSWORD }}
             EOF
             
-            echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # 4) перезапуск java-процесса (убьём старый, если есть)
+            pkill -f "app.jar" || true
+            sleep 1
             
-            docker compose -f docker-compose.yaml pull
-            docker compose -f docker-compose.yaml up -d --remove-orphans
+            # 5) стартуем новый бэкенд на 18080 с профилем prod
+            nohup java -jar app/app.jar \
+            --spring.profiles.active=prod \
+            --server.port=18080 \
+            --spring.web.resources.static-locations=file:/home/studs/${{ secrets.SSH_USER }}/islab/www/ \
+            > logs/backend.out 2>&1 < /dev/null &
+            
+            # 6) показать состояние и последнюю строку лога
+            ps aux | grep app.jar | grep -v grep || true
+            tail -n 50 logs/backend.out || true
