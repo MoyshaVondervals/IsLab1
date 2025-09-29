@@ -68,24 +68,24 @@ jobs:
           test -f deploy/docker-compose.yaml
           test -f deploy/nginx.conf
 
-      - name: Copy deploy files (password auth)
+      - name: Copy deploy files (SSH key)
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          host: ${{ secrets.SSH_HOST }}      # helios.cs.ifmo.ru
+          port: ${{ secrets.SSH_PORT }}      # 2222
+          username: ${{ secrets.SSH_USER }}  # s409361
+          key: ${{ secrets.SSH_KEY }}        # ПОЛНЫЙ приватный ключ
           source: "deploy/*"
           target: ~/islab
           overwrite: true
 
-      - name: Deploy via SSH (password auth)
+      - name: Deploy via SSH (SSH key)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             set -e
             mkdir -p ~/islab
