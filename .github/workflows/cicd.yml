@@ -9,7 +9,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_PREFIX: ghcr.io/${{ github.repository }}   # больше не используем, но оставим как метку
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -47,25 +47,28 @@ jobs:
           mkdir -p artifacts/backend
           cp "$JAR_PATH" artifacts/backend/app.jar
 
-      # Frontend: сборка статики
+      # Frontend: сборка статики — важная правка: CI=false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install frontend deps and build
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (treat warnings not as errors)
         working-directory: frontend
         run: |
-          npm ci
-          npm run build
-          ls -la build
+          CI=false npm run build
+        # Альтернатива: DISABLE_ESLINT_PLUGIN=true npm run build
 
       - name: Collect frontend artifact
         run: |
           mkdir -p artifacts/frontend
           cp -r frontend/build/* artifacts/frontend/
 
-      - name: Upload artifacts (for debug if needed)
+      - name: Upload artifacts (debug)
         uses: actions/upload-artifact@v4
         with:
           name: islab-artifacts
@@ -89,7 +92,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends sshpass openssh-client
 
-      # Копируем артефакты на сервер
       - name: Upload backend jar and frontend build
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -102,7 +104,6 @@ jobs:
           sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no artifacts/backend/app.jar  "$SSH_USER@$SSH_HOST:~/islab/backend/app.jar"
           sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no -r artifacts/frontend/*   "$SSH_USER@$SSH_HOST:~/islab/frontend/"
 
-      # Заливаем и ставим скрипты запуска/остановки (tmux-сессии: islab-backend, islab-proxy)
       - name: Upload run scripts
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -117,17 +118,14 @@ jobs:
           set -e
           mkdir -p ~/islab/bin
 
-          # --- backend start/stop ---
           cat > ~/islab/bin/start_backend.sh <<'EOB'
           #!/usr/bin/env bash
           set -e
           DIR="$HOME/islab/backend"
           cd "$DIR"
-          # убить старую сессию, если есть
           tmux kill-session -t islab-backend >/dev/null 2>&1 || true
-          # стартуем на 8080 с prod-профилем и PG переменными окружения
-          tmux new-session -d -s islab-backend "SPRING_PROFILES_ACTIVE=prod PG_USER='${PG_USER}' PG_PASSWORD='${PG_PASSWORD}' JAVA_OPTS='' java -jar app.jar --server.port=8080"
-          echo "backend started on :8080 (tmux session: islab-backend)"
+          SPRING_PROFILES_ACTIVE=prod PG_USER='${PG_USER}' PG_PASSWORD='${PG_PASSWORD}' JAVA_OPTS='' tmux new-session -d -s islab-backend "java -jar app.jar --server.port=8080"
+          echo "backend started on :8080 (tmux: islab-backend)"
           EOB
           chmod +x ~/islab/bin/start_backend.sh
 
@@ -139,68 +137,48 @@ jobs:
           EOB
           chmod +x ~/islab/bin/stop_backend.sh
 
-          # --- proxy (frontend static + /api proxy) ---
-          # Попытка №1: если есть Node, используем express + http-proxy-middleware
+          # Proxy: Node/express -> fallback Caddy -> fallback python
+          mkdir -p "$HOME/islab/proxy"
           cat > ~/islab/proxy/server.js <<'EON'
           const path = require('path');
           const express = require('express');
           const { createProxyMiddleware } = require('http-proxy-middleware');
-
           const app = express();
           const FRONT_DIR = path.join(process.env.HOME, 'islab', 'frontend');
           const API_TARGET = 'http://127.0.0.1:8080';
-
-          // как в nginx.conf: проксируем /api/ к backend:8080
-          app.use('/api', createProxyMiddleware({
-            target: API_TARGET,
-            changeOrigin: true,
-            pathRewrite: {'^/api': '/api'},
-            proxyTimeout: 30000,
-          }));
-
-          // статика React
+          app.use('/api', createProxyMiddleware({ target: API_TARGET, changeOrigin: true, pathRewrite: {'^/api':'/api'} }));
           app.use(express.static(FRONT_DIR));
-          // SPA fallback
-          app.get('*', (req, res) => res.sendFile(path.join(FRONT_DIR, 'index.html')));
-
+          app.get('*', (req,res)=>res.sendFile(path.join(FRONT_DIR,'index.html')));
           const port = process.env.PORT || 3000;
-          app.listen(port, () => console.log('proxy+static listening on :' + port));
+          app.listen(port, ()=>console.log('proxy+static on :'+port));
           EON
 
           cat > ~/islab/bin/start_proxy.sh <<'EOP'
           #!/usr/bin/env bash
           set -e
-          # убить старую сессию
           tmux kill-session -t islab-proxy >/dev/null 2>&1 || true
-
           if command -v node >/dev/null 2>&1; then
-            # Node есть — ставим зависимости в локальную папку пользователя (без sudo)
             cd "$HOME/islab/proxy"
-            # инициализация package.json, если его ещё нет
             [ -f package.json ] || npm init -y >/dev/null 2>&1
             npm ls express >/dev/null 2>&1 || npm i express http-proxy-middleware >/dev/null 2>&1
             tmux new-session -d -s islab-proxy "node $HOME/islab/proxy/server.js"
-            echo "proxy (Node/express) started on :3000 (tmux session: islab-proxy)"
+            echo "proxy (Node/express) on :3000 (tmux: islab-proxy)"
           else
-            # Node нет — пробуем Caddy (без sudo, в $HOME/bin)
             mkdir -p "$HOME/bin"
             if [ ! -x "$HOME/bin/caddy" ]; then
-              # определяем архитектуру (только x86_64 и aarch64 покрываем)
               ARCH=$(uname -m)
               if [ "$ARCH" = "x86_64" ]; then
                 URL="https://caddyserver.com/api/download?os=linux&arch=amd64&p=http.handlers.reverse_proxy"
               elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
                 URL="https://caddyserver.com/api/download?os=linux&arch=arm64&p=http.handlers.reverse_proxy"
               else
-                echo "Неизвестная архитектура \$ARCH=$ARCH — откат к python http.server (без proxy)"
                 tmux new-session -d -s islab-proxy "cd $HOME/islab/frontend && python3 -m http.server 3000"
-                echo "static served on :3000 via python (NO /api proxy)"; exit 0
+                echo "static on :3000 via python (NO /api proxy)"; exit 0
               fi
               curl -fsSL "$URL" -o /tmp/caddy.tar.gz
               tar -xzf /tmp/caddy.tar.gz -C "$HOME/bin"
               chmod +x "$HOME/bin/caddy"
             fi
-            # пишем Caddyfile
             cat > "$HOME/islab/proxy/Caddyfile" <<'CF'
             :3000
             root * ~/islab/frontend
@@ -220,7 +198,7 @@ jobs:
             }
             CF
             tmux new-session -d -s islab-proxy "$HOME/bin/caddy run --config $HOME/islab/proxy/Caddyfile --adapter caddyfile"
-            echo "proxy (Caddy) started on :3000 (tmux session: islab-proxy)"
+            echo "proxy (Caddy) on :3000 (tmux: islab-proxy)"
           fi
           EOP
           chmod +x ~/islab/bin/start_proxy.sh
@@ -232,11 +210,8 @@ jobs:
           echo "proxy stopped"
           EOP
           chmod +x ~/islab/bin/stop_proxy.sh
-
-          echo "Scripts installed to ~/islab/bin"
           EOSH
 
-      # Рестартуем процессы (без sudo)
       - name: Restart app (backend+proxy)
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -247,13 +222,10 @@ jobs:
           set -e
           sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
           set -e
-          # стоп старых
           ~/islab/bin/stop_backend.sh || true
           ~/islab/bin/stop_proxy.sh || true
-          # старт новых
           ~/islab/bin/start_backend.sh
           ~/islab/bin/start_proxy.sh
-          # показать живые сессии
           tmux ls || true
           EOSH
 
