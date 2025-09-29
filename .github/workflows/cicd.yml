@@ -68,28 +68,24 @@ jobs:
           test -f deploy/docker-compose.yaml
           test -f deploy/nginx.conf
 
-      - name: Copy deploy files
+      - name: Copy deploy files (password auth)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          # если ваш приватный ключ С ПАРОЛЕМ, добавьте секрет SSH_KEY_PASSPHRASE и раскомментируйте строку ниже
-          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
-          source: "deploy/docker-compose.yaml,deploy/nginx.conf"
-          target: "~/islab"
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: "deploy/*"
+          target: ~/islab
           overwrite: true
 
-      - name: Deploy via SSH
+      - name: Deploy via SSH (password auth)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          # если ключ с паролем – раскомментируйте:
-          # passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          password: ${{ secrets.SSH_PASSWORD }}
           script: |
             set -e
             mkdir -p ~/islab
@@ -100,8 +96,8 @@ jobs:
             PG_USER=${{ secrets.PG_USER }}
             PG_PASSWORD=${{ secrets.PG_PASSWORD }}
             EOF
-
+            
             echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
+            
             docker compose -f docker-compose.yaml pull
             docker compose -f docker-compose.yaml up -d --remove-orphans
