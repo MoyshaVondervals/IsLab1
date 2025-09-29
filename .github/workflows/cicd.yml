@@ -61,43 +61,55 @@ jobs:
       - name: Compute IMAGE_PREFIX (lowercase)
         run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
-      - name: Debug repo contents
+      - name: Verify deploy files
         run: |
-          pwd && ls -la
           ls -la deploy
           test -f deploy/docker-compose.yaml
           test -f deploy/nginx.conf
 
-      - name: Copy deploy files (password auth)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: "deploy/docker-compose.yaml,deploy/nginx.conf"
-          target: "~/islab"
-          overwrite: true
+      - name: Install sshpass and openssh-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sshpass openssh-client
 
-      - name: Deploy via SSH (password auth)
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            set -e
-            mkdir -p ~/islab
-            cd ~/islab
+      - name: Copy deploy files via sshpass
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          set -e
+          sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" 'mkdir -p ~/islab'
+          sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no deploy/docker-compose.yaml "$SSH_USER@$SSH_HOST:~/islab/docker-compose.yaml"
+          sshpass -p "$SSH_PASSWORD" scp -P "$SSH_PORT" -o StrictHostKeyChecking=no deploy/nginx.conf        "$SSH_USER@$SSH_HOST:~/islab/nginx.conf"
 
-            cat > .env <<EOF
-            IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
-            PG_USER=${{ secrets.PG_USER }}
-            PG_PASSWORD=${{ secrets.PG_PASSWORD }}
-            EOF
+      - name: Deploy via sshpass (remote commands)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+          IMAGE_PREFIX: ${{ env.IMAGE_PREFIX }}
+          PG_USER: ${{ secrets.PG_USER }}
+          PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
+          GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+        run: |
+          set -e
+          sshpass -p "$SSH_PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$SSH_USER@$SSH_HOST" bash -s <<'EOSH'
+          set -e
+          mkdir -p ~/islab
+          cd ~/islab
 
-            echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          cat > .env <<EOF
+          IMAGE_PREFIX=${IMAGE_PREFIX}
+          PG_USER=${PG_USER}
+          PG_PASSWORD=${PG_PASSWORD}
+          EOF
 
-            docker compose -f docker-compose.yaml pull
-            docker compose -f docker-compose.yaml up -d --remove-orphans
+          echo "${GHCR_READ_TOKEN}" | docker login ghcr.io -u "${GH_ACTOR}" --password-stdin
+
+          docker compose -f docker-compose.yaml pull
+          docker compose -f docker-compose.yaml up -d --remove-orphans
+          EOSH
