@@ -1,24 +1,26 @@
 package org.moysha.islab1.controllers;
 
-import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.media.*;
+import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
-import org.moysha.islab1.dto.NewDragonResp;
-import org.moysha.islab1.models.*;
+import org.moysha.islab1.services.*;
 import org.moysha.islab1.repositories.CavesRepository;
 import org.moysha.islab1.repositories.CoordinatesRepository;
 import org.moysha.islab1.repositories.HeadRepository;
 import org.moysha.islab1.repositories.LocationRepository;
-import org.moysha.islab1.services.*;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/")
+@Tag(name = "Delete", description = "Удаление сущностей")
+@SecurityRequirement(name = "bearerAuth")
 public class DeleteElementsController {
 
     private final SimpMessagingTemplate template;
@@ -33,8 +35,19 @@ public class DeleteElementsController {
     private final LocationRepository locationRepository;
     private final CoordinatesRepository coordinatesRepository;
 
+    @Operation(
+            summary = "Удалить координаты",
+            description = "Удаляет координаты по идентификатору. Если координаты используются — вернёт 400.",
+            operationId = "deleteCoordinatesById"
+    )
+    @ApiResponse(responseCode = "200", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @ApiResponse(responseCode = "400", description = "Нельзя удалить: есть зависимости",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @DeleteMapping("/deleteCoordinatesById/{id}")
-    public ResponseEntity<String> deleteCoordinates(@PathVariable long id) {
+    public ResponseEntity<String> deleteCoordinates(
+            @Parameter(description = "ID координат", example = "1")
+            @PathVariable long id) {
         System.err.println("deleteCoordinates id: " + id);
         try {
             if (dragonService.isCoordinatesUsed(id)) {
@@ -52,8 +65,19 @@ public class DeleteElementsController {
         }
     }
 
+    @Operation(
+            summary = "Удалить пещеру",
+            description = "Удаляет пещеру по идентификатору. Если пещера используется — вернёт 400.",
+            operationId = "deleteCaveById"
+    )
+    @ApiResponse(responseCode = "200", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @ApiResponse(responseCode = "400", description = "Нельзя удалить: есть зависимости",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @DeleteMapping("/deleteCaveById/{id}")
-    public ResponseEntity<String> deleteCave(@PathVariable long id) {
+    public ResponseEntity<String> deleteCave(
+            @Parameter(description = "ID пещеры", example = "1")
+            @PathVariable long id) {
         try {
             if (dragonService.isCaveUsed(id)) {
                 return ResponseEntity.badRequest()
@@ -70,23 +94,41 @@ public class DeleteElementsController {
         }
     }
 
+    @Operation(
+            summary = "Удалить персонажа",
+            description = "Удаляет персонажа по идентификатору. Если используется как убийца — вернёт 400.",
+            operationId = "deletePersonById"
+    )
+    @ApiResponse(responseCode = "200", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @ApiResponse(responseCode = "400", description = "Нельзя удалить: есть зависимости",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @DeleteMapping("/deletePersonById/{id}")
-    public ResponseEntity<String> deletePerson(@PathVariable long id) {
-            if (dragonService.isKillerUsed(id)) {
-
-                return ResponseEntity.badRequest()
-                        .body("Нельзя удалить персонажа: он является убийцей драконов. " +
-                                "Сначала удалите или измените связанных драконов.");
-            }
-
-            personService.deletePersonById(id);
-            return ResponseEntity.ok("Персонаж успешно удален");
-
-
+    public ResponseEntity<String> deletePerson(
+            @Parameter(description = "ID персонажа", example = "1")
+            @PathVariable long id) {
+        if (dragonService.isKillerUsed(id)) {
+            return ResponseEntity.badRequest()
+                    .body("Нельзя удалить персонажа: он является убийцей драконов. " +
+                            "Сначала удалите или измените связанных драконов.");
+        }
+        personService.deletePersonById(id);
+        return ResponseEntity.ok("Персонаж успешно удален");
     }
 
+    @Operation(
+            summary = "Удалить голову дракона",
+            description = "Удаляет голову по идентификатору. Если используется — вернёт 400.",
+            operationId = "deleteHeadById"
+    )
+    @ApiResponse(responseCode = "200", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @ApiResponse(responseCode = "400", description = "Нельзя удалить: есть зависимости",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @DeleteMapping("/deleteHeadById/{id}")
-    public ResponseEntity<String> deleteHead(@PathVariable long id) {
+    public ResponseEntity<String> deleteHead(
+            @Parameter(description = "ID головы", example = "1")
+            @PathVariable long id) {
         try {
             if (dragonService.isHeadUsed(id)) {
                 return ResponseEntity.badRequest()
@@ -103,8 +145,19 @@ public class DeleteElementsController {
         }
     }
 
+    @Operation(
+            summary = "Удалить локацию",
+            description = "Удаляет локацию по идентификатору. Если используется — вернёт 400.",
+            operationId = "deleteLocationById"
+    )
+    @ApiResponse(responseCode = "200", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @ApiResponse(responseCode = "400", description = "Нельзя удалить: есть зависимости",
+            content = @Content(schema = @Schema(implementation = String.class)))
     @DeleteMapping("/deleteLocationById/{id}")
-    public ResponseEntity<String> deleteLocation(@PathVariable long id) {
+    public ResponseEntity<String> deleteLocation(
+            @Parameter(description = "ID локации", example = "1")
+            @PathVariable long id) {
         try {
             if (personService.isLocationUsed(id)) {
                 return ResponseEntity.badRequest()
@@ -120,12 +173,4 @@ public class DeleteElementsController {
                     .body("Ошибка удаления локации: " + e.getMessage());
         }
     }
-
-
-
-
-
-
-
-
 }
