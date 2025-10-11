@@ -65,6 +65,34 @@ const DragonOperationsPage = () => {
         return [data];
     };
 
+    // ---------- Единый извлекатель текста ошибки из axios ----------
+    const extractErrorMessage = (err) => {
+        if (!err?.response) return 'Невозможно выполнить операцию';
+        const data = err.response.data;
+
+        // Если сервер прислал строку
+        if (typeof data === 'string') {
+            const s = data.trim();
+            return s.length > 0 ? s : 'Невозможно выполнить операцию';
+        }
+
+        // Если сервер прислал объект с message (ResponseStatusException / ваш handler)
+        if (data && typeof data === 'object') {
+            if (typeof data.message === 'string' && data.message.trim().length > 0) {
+                return data.message;
+            }
+            try {
+                const json = JSON.stringify(data);
+                return json.length > 2 ? json : 'Невозможно выполнить операцию';
+            } catch {
+                return 'Невозможно выполнить операцию';
+            }
+        }
+
+        return 'Невозможно выполнить операцию';
+    };
+    // ---------------------------------------------------------------
+
     const loadPersons = async () => {
         try {
             const resp = await api.get('/getPerson', {
@@ -73,7 +101,7 @@ const DragonOperationsPage = () => {
             setPersons(resp.data || []);
             notify('success', 'Список убийц загружен');
         } catch (e) {
-            notify('error', 'Ошибка загрузки убийц');
+            notify('error', extractErrorMessage(e));
         }
     };
 
@@ -142,12 +170,15 @@ const DragonOperationsPage = () => {
                         notify('error', 'Выберите убийцу');
                         return;
                     }
-                    // В axios 2-й аргумент — тело запроса. Передаём null и выносим headers в 3-й аргумент.
-                    await api.post(
-                        `/dragons/kill/${param}?killerId=${killerId}`,
-                        null,
+
+                    // НОВОЕ: отправляем JSON-DTO вместо path+query
+                    const body = { dragonId: param, killerId: killerId };
+                    response = await api.post(
+                        '/dragons/kill',
+                        body,
                         { headers: { Authorization: `Bearer ${token}` } }
                     );
+
                     setResult({ killedId: param, killerId });
                     notify('success', `Дракон #${param} убит (убийца Person #${killerId})`);
                     break;
@@ -158,8 +189,7 @@ const DragonOperationsPage = () => {
                 }
             }
         } catch (e) {
-            const msg = e?.response?.data;
-            notify('error', typeof msg === 'string' ? msg : 'Ошибка операции');
+            notify('error', extractErrorMessage(e));
         } finally {
             setLoading(false);
         }

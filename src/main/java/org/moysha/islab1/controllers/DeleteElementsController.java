@@ -34,7 +34,7 @@ public class DeleteElementsController {
     private final CoordinatesRepository coordinatesRepository;
 
     @DeleteMapping("/deleteCoordinatesById/{id}")
-    public ResponseEntity<?> deleteCoordinates(@PathVariable long id) {
+    public ResponseEntity<String> deleteCoordinates(@PathVariable long id) {
         System.err.println("deleteCoordinates id: " + id);
         try {
             if (dragonService.isCoordinatesUsed(id)) {
@@ -53,9 +53,8 @@ public class DeleteElementsController {
     }
 
     @DeleteMapping("/deleteCaveById/{id}")
-    public ResponseEntity<?> deleteCave(@PathVariable long id) {
+    public ResponseEntity<String> deleteCave(@PathVariable long id) {
         try {
-            // Проверяем, используется ли пещера каким-либо драконом
             if (dragonService.isCaveUsed(id)) {
                 return ResponseEntity.badRequest()
                         .body("Нельзя удалить пещеру: она используется драконами. " +
@@ -72,7 +71,7 @@ public class DeleteElementsController {
     }
 
     @DeleteMapping("/deletePersonById/{id}")
-    public ResponseEntity<?> deletePerson(@PathVariable long id) {
+    public ResponseEntity<String> deletePerson(@PathVariable long id) {
             if (dragonService.isKillerUsed(id)) {
 
                 return ResponseEntity.badRequest()
@@ -87,9 +86,8 @@ public class DeleteElementsController {
     }
 
     @DeleteMapping("/deleteHeadById/{id}")
-    public ResponseEntity<?> deleteHead(@PathVariable long id) {
+    public ResponseEntity<String> deleteHead(@PathVariable long id) {
         try {
-            // Проверяем, используется ли голова каким-либо драконом
             if (dragonService.isHeadUsed(id)) {
                 return ResponseEntity.badRequest()
                         .body("Нельзя удалить голову: она используется драконами. " +
@@ -106,9 +104,8 @@ public class DeleteElementsController {
     }
 
     @DeleteMapping("/deleteLocationById/{id}")
-    public ResponseEntity<?> deleteLocation(@PathVariable long id) {
+    public ResponseEntity<String> deleteLocation(@PathVariable long id) {
         try {
-            // Проверяем, используется ли локация каким-либо персонажем
             if (personService.isLocationUsed(id)) {
                 return ResponseEntity.badRequest()
                         .body("Нельзя удалить локацию: она используется персонажами. " +

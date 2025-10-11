@@ -30,7 +30,7 @@ public class CreateController {
         try {
             Coordinates coordinates = coordinatesDTO.toEntity();
             Coordinates savedCoordinates = coordinatesService.save(coordinates);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedCoordinates);
+            return ResponseEntity.status(HttpStatus.CREATED).body(coordinatesDTO);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body("Ошибка создания координат: " + e.getMessage());
@@ -41,7 +41,7 @@ public class CreateController {
         try {
             DragonCave cave = caveDTO.toEntity();
             DragonCave savedCave = caveService.save(cave);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedCave);
+            return ResponseEntity.status(HttpStatus.CREATED).body(caveDTO);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body("Ошибка создания пещеры: " + e.getMessage());
@@ -53,7 +53,7 @@ public class CreateController {
         try {
             Location location = locationDTO.toEntity();
             Location savedLocation = locationService.save(location);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedLocation);
+            return ResponseEntity.status(HttpStatus.CREATED).body(locationDTO);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body("Ошибка создания локации: " + e.getMessage());
@@ -65,7 +65,7 @@ public class CreateController {
         try {
             DragonHead head = headDTO.toEntity();
             DragonHead savedHead = headService.save(head);
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedHead);
+            return ResponseEntity.status(HttpStatus.CREATED).body(headDTO);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
                     .body("Ошибка создания головы дракона: " + e.getMessage());
@@ -78,9 +78,8 @@ public class CreateController {
         try {
             Location location = null;
 
-            // если location присутствует и в нем указан id — достаем из БД
             if (personDTO.getLocation() != null && personDTO.getLocation().getId() != null) {
-                Integer locId = personDTO.getLocation().getId();
+                long locId = personDTO.getLocation().getId();
                 location = locationService.getById(locId);
 
                 if (location == null) {
@@ -92,7 +91,7 @@ public class CreateController {
             Person person = personDTO.toEntity(location);
             Person savedPerson = personService.save(person);
 
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedPerson);
+            return ResponseEntity.status(HttpStatus.CREATED).body(personDTO);
 
         } catch (Exception e) {
             e.printStackTrace();

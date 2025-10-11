@@ -2,6 +2,7 @@ package org.moysha.islab1.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -10,7 +11,10 @@ import org.moysha.islab1.models.DragonHead;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class DragonHeadDTO {
+
+    private Long id;
 
     @NotNull(message = "Size cannot be null")
     @Min(value = 1, message = "Size must be greater than 0")

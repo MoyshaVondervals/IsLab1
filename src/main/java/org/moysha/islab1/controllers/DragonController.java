@@ -2,6 +2,8 @@ package org.moysha.islab1.controllers;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.moysha.islab1.dto.CoordinatesDTO;
+import org.moysha.islab1.dto.DragonDTO;
 import org.moysha.islab1.dto.NewDragonResp;
 import org.moysha.islab1.models.*;
 import org.moysha.islab1.services.*;
@@ -26,7 +28,7 @@ public class DragonController {
     private final HeadService headService;
 
     @PostMapping("/createDragon")
-    public ResponseEntity push(@RequestBody @Valid NewDragonResp request) {
+    public ResponseEntity<String> push(@RequestBody @Valid NewDragonResp request) {
         System.err.println(request.toString());
         try {
             dragonService.createDragon(request);
@@ -60,19 +62,17 @@ public class DragonController {
     }
 
     @PutMapping("/updateDragonById/{id}")
-    public ResponseEntity<?> updateDragon(@PathVariable Long id, @RequestBody Dragon updatedDragon) {
-//        try {
+    public ResponseEntity<DragonDTO> updateDragon(@PathVariable Long id, @RequestBody Dragon updatedDragon) {
             Dragon result = dragonService.updateDragon(id, updatedDragon);
+
+            DragonDTO dto = dragonService.convertToDTO(result);
             System.err.println(updatedDragon.toString());
-            return ResponseEntity.ok(result);
-//            return ResponseEntity.ok(dragonService.getDragonById(id));
-//        } catch (Exception e) {
-//            return ResponseEntity.badRequest().body("Error updating dragon: " + e.getMessage());
-//        }
+            return ResponseEntity.ok(dto);
+
     }
 
     @DeleteMapping("/deleteDragonById/{id}")
-    public ResponseEntity<?> deleteDragon(@PathVariable long id) {
+    public ResponseEntity<String> deleteDragon(@PathVariable long id) {
         System.err.println("DELETE DRAGON BY ID"+id);
         dragonService.deleteDragon(id);
         List<Dragon> dragonList = dragonService.getAllDragons();

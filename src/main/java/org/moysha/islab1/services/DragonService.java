@@ -4,7 +4,8 @@ package org.moysha.islab1.services;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.moysha.islab1.dto.NewDragonResp;
+import org.moysha.islab1.dto.*;
+import org.moysha.islab1.exceptions.MessageException;
 import org.moysha.islab1.models.*;
 import org.moysha.islab1.repositories.*;
 import org.springframework.data.domain.PageRequest;
@@ -227,32 +228,96 @@ public class DragonService {
         return avgAge/dragons.size();
     }
 
-    public Dragon findDragonWithMaxCave() {
-        return dragonRepository.findDragonWithDeepestCave();
+    public DragonDTO findDragonWithMaxCave() {
+        Dragon dragon = dragonRepository.findDragonWithDeepestCave();
+        DragonDTO dto = convertToDTO(dragon);
+        return dto;
     }
 
-    public Dragon findDragonWithHead(long size) {
-        return  dragonRepository.findFirstByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
+    public DragonDTO findDragonWithHead(long size) {
+        Dragon dragon = dragonRepository.findFirstByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
+        return  convertToDTO(dragon);
     }
 
-    public Dragon getOldestDragon() {
-        return dragonRepository.findFirstByOrderByAgeDescIdAsc();
+    public DragonDTO getOldestDragon() {
+        Dragon dragon = dragonRepository.findFirstByOrderByAgeDescIdAsc();
+        return convertToDTO(dragon);
 
     }
 
 
     public Dragon killDragon(Long dragonId, Long killerId) {
         Dragon dragon = dragonRepository.findById(dragonId)
-                .orElseThrow(() -> new EntityNotFoundException("Дракон не найден: " + dragonId));
+                .orElseThrow(() -> new MessageException("Дракон не найден: " + dragonId));
 
         if (dragon.getKiller() != null) {
-            throw new IllegalStateException("Дракон #" + dragonId + " уже убит убийцей " + dragon.getKiller().getName());
+            throw new MessageException("Дракон #" + dragonId + " уже убит убийцей " + dragon.getKiller().getName());
         }
 
         Person killer = personRepository.findById(killerId)
-                .orElseThrow(() -> new EntityNotFoundException("Убийца не найден: " + killerId));
+                .orElseThrow(() -> new MessageException("Убийца не найден: " + killerId));
 
         dragon.setKiller(killer);
         return dragonRepository.save(dragon);
+    }
+
+    public DragonDTO convertToDTO(Dragon dragon) {
+        if (dragon.getKiller()!=null) {
+            return DragonDTO.builder()
+                    .name(dragon.getName())
+                    .coordinates(CoordinatesDTO.builder()
+                            .x(dragon.getCoordinates().getX())
+                            .y(dragon.getCoordinates().getY())
+                            .build())
+                    .creationDate(dragon.getCreationDate())
+                    .cave(DragonCaveDTO.builder()
+                            .numberOfTreasures(dragon.getCave().getNumberOfTreasures())
+                            .build())
+                    .killer(PersonDTO.builder()
+                            .name(dragon.getKiller().getName())
+                            .eyeColor(dragon.getKiller().getEyeColor())
+                            .hairColor(dragon.getKiller().getHairColor())
+                            .location(LocationDTO.builder()
+                                    .x(dragon.getKiller().getLocation().getX())
+                                    .y(dragon.getKiller().getLocation().getY())
+                                    .z(dragon.getKiller().getLocation().getZ()).build())
+                            .passportID(dragon.getKiller().getPassportID())
+                            .nationality(dragon.getKiller().getNationality())
+                            .build())
+                    .age(dragon.getAge())
+                    .description(dragon.getDescription())
+                    .wingspan(dragon.getWingspan())
+                    .type(dragon.getType())
+                    .head(DragonHeadDTO.builder()
+                            .toothCount(dragon.getHead().getToothCount())
+                            .eyesCount(dragon.getHead().getEyesCount())
+                            .size(dragon.getHead().getSize())
+                            .build())
+                    .build();
+        }
+        else {
+            return DragonDTO.builder()
+                    .name(dragon.getName())
+                    .coordinates(CoordinatesDTO.builder()
+                            .x(dragon.getCoordinates().getX())
+                            .y(dragon.getCoordinates().getY())
+                            .build())
+                    .creationDate(dragon.getCreationDate())
+                    .cave(DragonCaveDTO.builder()
+                            .numberOfTreasures(dragon.getCave().getNumberOfTreasures())
+                            .build())
+                    .age(dragon.getAge())
+                    .description(dragon.getDescription())
+                    .wingspan(dragon.getWingspan())
+                    .type(dragon.getType())
+                    .head(DragonHeadDTO.builder()
+                            .toothCount(dragon.getHead().getToothCount())
+                            .eyesCount(dragon.getHead().getEyesCount())
+                            .size(dragon.getHead().getSize())
+                            .build())
+                    .build();
+        }
+
+
     }
 }

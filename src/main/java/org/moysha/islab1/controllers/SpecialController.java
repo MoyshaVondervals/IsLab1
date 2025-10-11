@@ -3,6 +3,8 @@ package org.moysha.islab1.controllers;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.moysha.islab1.dto.DragonDTO;
+import org.moysha.islab1.dto.KillDragonDTO;
 import org.moysha.islab1.dto.NewDragonResp;
 import org.moysha.islab1.models.*;
 import org.moysha.islab1.services.*;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -33,35 +36,35 @@ public class SpecialController {
     }
 
     @GetMapping("/dragons/maxCave")
-    public ResponseEntity<Dragon> maxCave() {
+    public ResponseEntity<DragonDTO> maxCave() {
         return ResponseEntity.ok(dragonService.findDragonWithMaxCave());
     }
 
     @GetMapping("/dragons/headGreater/{param}")
-    public ResponseEntity<Dragon> getDragonById(@PathVariable long param) {
+    public ResponseEntity<DragonDTO> getDragonById(@PathVariable long param) {
         return ResponseEntity.ok(dragonService.findDragonWithHead(param));
     }
 
 
     @GetMapping("/dragons/oldest")
-    public ResponseEntity<Dragon> getOldestDragon() {
+    public ResponseEntity<DragonDTO> getOldestDragon() {
         return ResponseEntity.ok(dragonService.getOldestDragon());
     }
 
 
 
-    @PostMapping("/kill/{id}")
-    public ResponseEntity<?> killDragon(
-            @PathVariable Long id,
-            @RequestParam Long killerId
-    ) {
+    @PostMapping("/dragons/kill")
+    public ResponseEntity<Dragon> killDragon(@Valid @RequestBody KillDragonDTO dto) {
         try {
-            Dragon killed = dragonService.killDragon(id, killerId);
+            System.err.println(2);
+            Dragon killed = dragonService.killDragon(dto.getDragonId(), dto.getKillerId());
             return ResponseEntity.ok(killed);
         } catch (EntityNotFoundException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            // не нашли дракона/убийцу — 404
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dragon not found", e);
         } catch (IllegalStateException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // уже убит или бизнес-правило — 409
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Dragon is already killed", e);
         }
     }
 
