@@ -25,6 +25,8 @@ jobs:
 
       - name: Install & Build Frontend
         working-directory: frontend
+        env:
+          REACT_APP_API_URL: "http://127.0.0.1:8081/api"
         run: |
           npm ci
           CI=false DISABLE_ESLINT_PLUGIN=true npm run build
@@ -228,3 +230,57 @@ jobs:
     
           "$APP_DIR/status.sh" || true
           REMOTE
+
+      - name: Upload frontend build to Helios
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
+            frontend/build/ \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/site/"
+
+      - name: Create static server scripts (python http.server)
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            SITE="$APP/site"
+            LOG="$APP/logs"
+            mkdir -p "$SITE" "$LOG"
+            
+            cat > "$APP/site_start.sh" <<'SH'
+            #!/usr/bin/env bash
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            SITE="$APP/site"
+            LOG="$APP/logs"
+            PORT="${FRONT_PORT:-8082}"
+            
+            if [ -f "$APP/site.pid" ] && ps -p "$(cat "$APP/site.pid" 2>/dev/null)" > /dev/null 2>&1; then
+            echo "Static server already running, PID $(cat "$APP/site.pid")"
+            exit 0
+            fi
+            
+            # запускаем python3 http.server, корень — каталог сайта
+            nohup python3 -m http.server "$PORT" --directory "$SITE" >> "$LOG/site.out.log" 2>> "$LOG/site.err.log" &
+            echo $! > "$APP/site.pid"
+            echo "Static server started on :$PORT, PID $(cat "$APP/site.pid")"
+            SH
+            chmod 755 "$APP/site_start.sh"
+            
+            cat > "$APP/site_stop.sh" <<'SH'
+            #!/usr/bin/env bash
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            if [ -f "$APP/site.pid" ]; then
+            PID="$(cat "$APP/site.pid" 2>/dev/null || true)"
+            if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
+            kill "$PID" || true
+            sleep 1
+            ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
+            fi
+            rm -f "$APP/site.pid"
+            fi
+            echo "Static server stopped"
+            SH
+            chmod 755 "$APP/site_stop.sh"
+            REMOTE
