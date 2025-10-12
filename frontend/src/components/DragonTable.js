@@ -18,7 +18,7 @@ const COUNTRY_ENUM = ["FRANCE", "SPAIN", "VATICAN", "ITALY", "NORTH_KOREA"];
 const { Title, Text } = Typography;
 
 
-const WS_URL = "ws://localhost:8080/ws";
+const WS_URL = "ws://127.0.0.1:8081";
 const TOPIC = "/topic/echo";
 
 function normalizeDragon(d) {
