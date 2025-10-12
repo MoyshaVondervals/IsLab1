@@ -54,59 +54,15 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-//openApiGenerate {
-//    inputSpec.set("$projectDir/src/main/resources/openapi/openapi.yaml")
-//    generatorName.set("spring")
-//    library.set("spring-boot")
-//    apiPackage.set("org.moysha.islab1.generated.api")
-//    modelPackage.set("org.moysha.islab1.generated.model")
-//    invokerPackage.set("org.moysha.islab1.generated.invoker")
-//    configOptions.set(
-//        mapOf(
-//            "interfaceOnly" to "true",
-//            "useTags" to "true",
-//            "dateLibrary" to "java8",
-//            "useSpringBoot3" to "true",
-//            "openApiNullable" to "false"
-//        )
-//    )
-//    generateApiTests.set(false)
-//    generateModelTests.set(false)
-//    skipValidateSpec.set(false)
-//
-//    // ГЕНЕРИРУЕМ В build/
-//    outputDir.set("$buildDir/generated/openapi")
-//}
-//
-//sourceSets {
-//    main {
-//        java {
-//            srcDir("$buildDir/generated/openapi/src/main/java")
-//        }
-//        resources {
-//            srcDir("src/main/resources")
-//        }
-//    }
-//}
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
 }
 
-//tasks.register("generateOpenApi") {
-//    dependsOn("openApiGenerate")
-//}
-//
-//tasks.named("compileJava") {
-//    dependsOn("openApiGenerate")
-//}
 
 tasks.withType<Test> {
     useJUnitPlatform()
 }
 
 
-//        tasks.withType<ProcessResources> {
-//            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-//            exclude("openapi/**")
-//        }
+
