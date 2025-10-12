@@ -1,3 +1,4 @@
+// src/pages/DragonOperationsPage.js
 import React, { useEffect, useState, useRef } from 'react';
 import {
     Card,
@@ -11,15 +12,20 @@ import {
 } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import useApiClient from '../../utils/requestController';
+
+import { GetApi, CreateApi, SpecialApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title } = Typography;
 const { Option } = Select;
 
+const getApi = new GetApi(apiConfig);
+const specialApi = new SpecialApi(apiConfig);
+const createApi = new CreateApi(apiConfig);
+
 const DragonOperationsPage = () => {
     const navigate = useNavigate();
     const token = useSelector((state) => state.auth.token);
-    const api = useApiClient();
 
     const [selectedOp, setSelectedOp] = useState(null);
     const [param, setParam] = useState(null);
@@ -65,18 +71,16 @@ const DragonOperationsPage = () => {
         return [data];
     };
 
-    // ---------- Единый извлекатель текста ошибки из axios ----------
+    // ---------- Единый извлекатель текста ошибки ----------
     const extractErrorMessage = (err) => {
         if (!err?.response) return 'Невозможно выполнить операцию';
         const data = err.response.data;
 
-        // Если сервер прислал строку
         if (typeof data === 'string') {
             const s = data.trim();
             return s.length > 0 ? s : 'Невозможно выполнить операцию';
         }
 
-        // Если сервер прислал объект с message (ResponseStatusException / ваш handler)
         if (data && typeof data === 'object') {
             if (typeof data.message === 'string' && data.message.trim().length > 0) {
                 return data.message;
@@ -91,14 +95,14 @@ const DragonOperationsPage = () => {
 
         return 'Невозможно выполнить операцию';
     };
-    // ---------------------------------------------------------------
+    // -------------------------------------------------------
 
     const loadPersons = async () => {
         try {
-            const resp = await api.get('/getPerson', {
+            const { data } = await getApi.getPersons({
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setPersons(resp.data || []);
+            setPersons(data || []);
             notify('success', 'Список убийц загружен');
         } catch (e) {
             notify('error', extractErrorMessage(e));
@@ -108,7 +112,7 @@ const DragonOperationsPage = () => {
     useEffect(() => {
         loadPersons();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [token]);
 
     const handleRun = async () => {
         if (!selectedOp) {
@@ -119,22 +123,21 @@ const DragonOperationsPage = () => {
         setLoading(true);
         setResult(null);
         try {
-            let response;
             switch (selectedOp) {
                 case 'avgAge': {
-                    response = await api.get('/dragons/avgAge', {
+                    const { data } = await specialApi.getAvgAge({
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setResult({ avgAge: response.data });
+                    setResult({ avgAge: data });
                     notify('success', 'Расчёт среднего возраста выполнен');
                     break;
                 }
 
                 case 'maxCave': {
-                    response = await api.get('/dragons/maxCave', {
+                    const { data } = await specialApi.getDragonWithMaxCave({
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setResult(response.data);
+                    setResult(data);
                     notify('success', 'Получен дракон с максимальным числом сокровищ');
                     break;
                 }
@@ -144,19 +147,19 @@ const DragonOperationsPage = () => {
                         notify('error', 'Укажите N для размера головы');
                         return;
                     }
-                    response = await api.get(`/dragons/headGreater/${param}`, {
+                    const { data } = await specialApi.getDragonHeadGreater(Number(param), {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setResult(toArray(response.data));
+                    setResult(toArray(data));
                     notify('success', `Найдены драконы с размером головы > ${param}`);
                     break;
                 }
 
                 case 'oldestDragon': {
-                    response = await api.get('/dragons/oldest', {
+                    const { data } = await specialApi.getOldestDragon({
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                    setResult(Array.isArray(response.data) ? response.data[0] : response.data);
+                    setResult(Array.isArray(data) ? data[0] : data);
                     notify('success', 'Получен самый старый дракон');
                     break;
                 }
@@ -171,22 +174,21 @@ const DragonOperationsPage = () => {
                         return;
                     }
 
-                    // НОВОЕ: отправляем JSON-DTO вместо path+query
-                    const body = { dragonId: param, killerId: killerId };
-                    response = await api.post(
-                        '/dragons/kill',
-                        body,
-                        { headers: { Authorization: `Bearer ${token}` } }
-                    );
+                    const body = { dragonId: Number(param), killerId: Number(killerId) };
+                    await specialApi.killDragon(body, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`
+                        }
+                    });
 
-                    setResult({ killedId: param, killerId });
+                    setResult({ killedId: Number(param), killerId: Number(killerId) });
                     notify('success', `Дракон #${param} убит (убийца Person #${killerId})`);
                     break;
                 }
 
-                default: {
+                default:
                     notify('error', 'Неизвестная операция');
-                }
             }
         } catch (e) {
             notify('error', extractErrorMessage(e));

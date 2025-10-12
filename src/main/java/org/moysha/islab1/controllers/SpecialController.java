@@ -20,6 +20,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/")
@@ -59,10 +61,10 @@ public class SpecialController {
     @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(schema = @Schema(implementation = DragonDTO.class)))
     @GetMapping("/dragons/headGreater/{param}")
-    public ResponseEntity<DragonDTO> getDragonById(
+    public ResponseEntity<List<DragonDTO>> getDragonById(
             @Parameter(description = "Пороговое значение для размера головы", example = "10")
             @PathVariable long param) {
-        return ResponseEntity.ok(dragonService.findDragonWithHead(param));
+        return ResponseEntity.ok(dragonService.findDragonsWithHeadGreater(param));
     }
 
     @Operation(summary = "Самый старый дракон", operationId = "getOldestDragon")

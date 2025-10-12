@@ -2,14 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Table, Button, Space, Modal, Form, InputNumber, Typography, Card, Tag, Alert } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import useApiClient from '../../utils/requestController';
 import { useSelector } from 'react-redux';
+
+
+import { GetApi, CreateApi, DeleteApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title, Text } = Typography;
 
+const getApi = new GetApi(apiConfig);
+const createApi = new CreateApi(apiConfig);
+const deleteApi = new DeleteApi(apiConfig);
+
 const CavesPage = () => {
     const navigate = useNavigate();
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
     const [data, setData] = useState([]);
@@ -18,7 +24,6 @@ const CavesPage = () => {
     const [form] = Form.useForm();
     const [saveLoading, setSaveLoading] = useState(false);
 
-    // --- Уведомления пользователя ---
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -45,7 +50,6 @@ const CavesPage = () => {
             timersRef.current = {};
         };
     }, []);
-    // --- конец уведомлений ---
 
     const columns = [
         {
@@ -82,10 +86,10 @@ const CavesPage = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/getCaves', {
+            const { data: caves } = await getApi.getCaves({
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setData(response?.data || []);
+            setData(caves || []);
         } catch (error) {
             notify('error', 'Ошибка загрузки пещер');
         } finally {
@@ -115,7 +119,7 @@ const CavesPage = () => {
                         : values.numberOfTreasures,
             };
 
-            await api.post('/createCave', payload, {
+            await createApi.createCave(payload, {
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
@@ -139,9 +143,8 @@ const CavesPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            await api.delete(`/deleteCaveById/${id}`, {
+            await deleteApi.deleteCaveById(id, {
                 headers: {
-                    'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
             });
@@ -154,7 +157,7 @@ const CavesPage = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [token]);
 
     return (
         <div style={{ padding: '20px' }}>
@@ -218,7 +221,6 @@ const CavesPage = () => {
                 </Form>
             </Modal>
 
-            {/* Панель уведомлений внизу */}
             <div style={{ marginTop: 16 }}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>

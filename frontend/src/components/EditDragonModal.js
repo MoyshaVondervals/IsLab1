@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import {
     Modal,
@@ -10,13 +11,14 @@ import {
     Segmented,
     Divider,
     Button,
-    Spin, Typography
+    Spin,
+    Typography
 } from "antd";
-import {
-    EditOutlined,
-} from "@ant-design/icons";
+import { EditOutlined } from "@ant-design/icons";
 import { useSelector } from "react-redux";
-import useApiClient from "../utils/requestController";
+
+import { GetApi, DragonApi } from "../api";
+import { apiConfig } from "../apiConfig";
 
 const { Text } = Typography;
 
@@ -25,14 +27,16 @@ const DRAGON_TYPES = ["WATER", "UNDERGROUND", "AIR", "FIRE"];
 const COLOR_ENUM = ["RED", "BLACK", "YELLOW", "WHITE", "BROWN"];
 const COUNTRY_ENUM = ["FRANCE", "SPAIN", "VATICAN", "ITALY", "NORTH_KOREA"];
 
+const getApi = new GetApi(apiConfig);
+const updateApi = new DragonApi(apiConfig);
+
 const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
     const [form] = Form.useForm();
     const [updating, setUpdating] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    /** ===== Справочники ===== */
+
     const [caves, setCaves] = useState([]);
     const [persons, setPersons] = useState([]);
     const [heads, setHeads] = useState([]);
@@ -40,63 +44,51 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
     const [locations, setLocations] = useState([]);
     const [loadingRefs, setLoadingRefs] = useState(false);
 
-    /** ===== Режимы ===== */
     const [modeCave, setModeCave] = useState("choose");
     const [modeKiller, setModeKiller] = useState("none");
     const [modeHead, setModeHead] = useState("choose");
     const [modeCoords, setModeCoords] = useState("choose");
     const [modeKillerLocation, setModeKillerLocation] = useState("choose");
 
-    // API endpoints
-    const API_UPDATE = `/updateDragonById/${dragon?.id}`;
-    const API_CAVES = "/getCaves";
-    const API_PERSONS = "/getPerson";
-    const API_HEADS = "/getHead";
-    const API_COORDS = "/getCoordinates";
-    const API_LOCATIONS = "/getLocation";
+    const authHeaders = { Authorization: `Bearer ${token}` };
 
     const loadRefs = async () => {
         setLoadingRefs(true);
         try {
-            const commonOpts = {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-            };
+            const jobs = [
+                ["caves", await getApi.getCaves({headers: authHeaders})],
+                ["persons", await getApi.getPersons({headers: authHeaders})],
+                ["heads", await getApi.getHeads({headers: authHeaders})],
+                ["coords", await getApi.getCoordinates({headers: authHeaders})],
+                ["locations", await getApi.getLocations({headers: authHeaders})],
+            ];
 
-            const reqs = {
-                caves: api.get(API_CAVES, commonOpts),
-                persons: api.get(API_PERSONS, commonOpts),
-                heads: api.get(API_HEADS, commonOpts),
-                coords: api.get(API_COORDS, commonOpts),
-                locations: api.get(API_LOCATIONS, commonOpts),
-            };
+            const settled = await Promise.allSettled(jobs.map(([, p]) => p));
+            const result = { caves: [], persons: [], heads: [], coords: [], locations: [] };
 
-            const entries = Object.entries(reqs);
-            const settled = await Promise.allSettled(entries.map(([, p]) => p));
-
-            const results = {};
-            for (let i = 0; i < entries.length; i++) {
-                const key = entries[i][0];
-                const res = settled[i];
+            settled.forEach((res, idx) => {
+                const key = jobs[idx][0];
                 if (res.status === "fulfilled") {
                     const payload = res.value?.data !== undefined ? res.value.data : res.value;
-                    results[key] = Array.isArray(payload) ? payload : [];
+                    result[key] = Array.isArray(payload) ? payload : [];
                 } else {
-                    results[key] = [];
                     console.error(`Failed to load ${key}:`, res.reason);
                 }
-            }
+            });
 
-            setCaves(results.caves);
-            setPersons(results.persons);
-            setHeads(results.heads);
-            setCoordsList(results.coords);
-            setLocations(results.locations);
+            setCaves(result.caves);
+            setPersons(result.persons);
+            setHeads(result.heads);
+            setCoordsList(result.coords);
+            setLocations(result.locations);
         } catch (e) {
             console.error("Error loading references:", e);
             message.error("Не удалось загрузить справочники");
+            setCaves([]);
+            setPersons([]);
+            setHeads([]);
+            setCoordsList([]);
+            setLocations([]);
         } finally {
             setLoadingRefs(false);
         }
@@ -106,35 +98,33 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
     const fillFormWithDragonData = () => {
         if (!dragon) return;
 
-        // Определяем режимы на основе существующих данных
+        // Режимы по наличию связанных сущностей
         setModeCoords(dragon.coordinates ? "choose" : "create");
         setModeCave(dragon.cave ? "choose" : "create");
         setModeKiller(dragon.killer ? "choose" : "none");
         setModeHead(dragon.head ? "choose" : "create");
-
         if (dragon.killer) {
             setModeKillerLocation(dragon.killer.location ? "choose" : "create");
         }
 
-        // Заполняем поля формы
         form.setFieldsValue({
-            // Основные поля
+
             name: dragon.name,
             age: dragon.age,
             description: dragon.description,
             wingspan: dragon.wingspan,
             type: dragon.type,
 
-            // Координаты
+
             coordinatesExistingId: dragon.coordinates?.id,
             coordX: dragon.coordinates?.x,
             coordY: dragon.coordinates?.y,
 
-            // Пещера
+
             caveExistingId: dragon.cave?.id,
             caveCreateNumberOfTreasures: dragon.cave?.numberOfTreasures,
 
-            // Убийца
+
             killerExistingId: dragon.killer?.id,
             killerName: dragon.killer?.name,
             killerEyeColor: dragon.killer?.eyeColor,
@@ -142,7 +132,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
             killerPassportID: dragon.killer?.passportID,
             killerNationality: dragon.killer?.nationality,
 
-            // Локация убийцы
+
             killerLocationExistingId: dragon.killer?.location?.id,
             locX: dragon.killer?.location?.x,
             locY: dragon.killer?.location?.y,
@@ -160,11 +150,14 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
     useEffect(() => {
         if (visible && dragon) {
             setLoading(true);
-            Promise.all([loadRefs()]).finally(() => {
-                setLoading(false);
-                fillFormWithDragonData();
-            });
+            loadRefs()
+                .catch(() => {}) // сообщение об ошибке уже показано в loadRefs
+                .finally(() => {
+                    setLoading(false);
+                    fillFormWithDragonData();
+                });
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible, dragon]);
 
     const handleUpdate = async () => {
@@ -172,6 +165,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
             const values = await form.validateFields();
             setUpdating(true);
 
+            // --- coordinates ---
             let coordinatesPayload = null;
             if (modeCoords === "choose") {
                 coordinatesPayload = { id: Number(values.coordinatesExistingId) };
@@ -182,15 +176,22 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                 };
             }
 
+            // --- cave ---
             let cavePayload = null;
             if (modeCave === "choose") {
                 cavePayload = values.caveExistingId ? { id: Number(values.caveExistingId) } : null;
             } else {
                 cavePayload = {
-                    numberOfTreasures: values.caveCreateNumberOfTreasures ? Number(values.caveCreateNumberOfTreasures) : null
+                    numberOfTreasures:
+                        values.caveCreateNumberOfTreasures !== undefined &&
+                        values.caveCreateNumberOfTreasures !== null &&
+                        values.caveCreateNumberOfTreasures !== ""
+                            ? Number(values.caveCreateNumberOfTreasures)
+                            : null
                 };
             }
 
+            // --- killer + killer.location ---
             let killerPayload = null;
             if (modeKiller === "choose") {
                 killerPayload = values.killerExistingId ? { id: Number(values.killerExistingId) } : null;
@@ -217,6 +218,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                 };
             }
 
+            // --- head ---
             let headPayload = null;
             if (modeHead === "choose") {
                 headPayload = values.headExistingId ? { id: Number(values.headExistingId) } : null;
@@ -235,24 +237,38 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                 killer: killerPayload,
                 age: Number(values.age),
                 description: values.description,
-                wingspan: values.wingspan ? Number(values.wingspan) : null,
+                wingspan:
+                    values.wingspan !== undefined && values.wingspan !== null && values.wingspan !== ""
+                        ? Number(values.wingspan)
+                        : null,
                 type: values.type || null,
                 head: headPayload,
             };
 
-            await api.put(API_UPDATE, payload, {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+            await updateApi.updateDragonById(
+                Number(dragon.id),
+                payload,
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    }
                 }
-            });
+            );
 
-            message.success("Дракон успешно обновлен");
-            onSuccess();
-            onCancel();
+            message.success("Дракон успешно обновлён");
+            onSuccess && onSuccess();
+            onCancel && onCancel();
         } catch (error) {
+            // Если ошибка валидации antd — не перекрываем стандартные подсказки
+            if (error?.errorFields) return;
             console.error("Update error:", error);
-            message.error(`Ошибка обновления: ${error.message}`);
+            const errMsg =
+                error?.response?.data?.message ??
+                (typeof error?.response?.data === "string" ? error.response.data : null) ??
+                error?.message ??
+                "Ошибка обновления";
+            message.error(`Ошибка обновления: ${errMsg}`);
         } finally {
             setUpdating(false);
         }
@@ -306,7 +322,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                 requiredMark="optional"
                 style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: 10 }}
             >
-                {/* Основные поля (аналогично созданию) */}
+
                 <Form.Item
                     name="name"
                     label="Имя дракона"
@@ -318,8 +334,6 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     <Input />
                 </Form.Item>
 
-                {/* Остальные поля формы - ТОЧНО ТАКИЕ ЖЕ КАК В КОМПОНЕНТЕ СОЗДАНИЯ */}
-                {/* Координаты */}
                 <Divider>Координаты (обязательные)</Divider>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
                     <span style={{ marginRight: 16 }}>Режим координат:</span>
@@ -368,7 +382,6 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     </>
                 )}
 
-                {/* 3) Пещера */}
                 <Divider className="dragons-divider">Пещера (обязательное поле)</Divider>
                 <div className="dragons-segment-row">
                     <span className="dragons-segment-label">Режим пещеры:</span>
@@ -417,7 +430,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     </Form.Item>
                 )}
 
-                {/* 4) Убийца */}
+                {/* Убийца */}
                 <Divider className="dragons-divider">Убийца (может быть пусто)</Divider>
                 <div className="dragons-segment-row">
                     <span className="dragons-segment-label">Режим убийцы:</span>
@@ -425,10 +438,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                         value={modeKiller}
                         onChange={(val) => {
                             setModeKiller(val);
-                            // при смене режима убийцы сбросим подрежим локации на choose
-                            if (val !== "create") {
-                                setModeKillerLocation("choose");
-                            }
+                            if (val !== "create") setModeKillerLocation("choose");
                         }}
                         options={[
                             { label: "Нет", value: "none" },
@@ -447,7 +457,9 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                         <Select
                             loading={loadingRefs}
                             options={persons.map((p) => ({
-                                label: `#${p.id} — Имя: ${p.name} / Национальность: ${p.nationality} ${p.location ? ` / loc: ${p.location.name} x=${p.location.x}, y=${p.location.y}, z=${p.location.z}${p.location.name ? `` : ""}` : ""}`,
+                                label: `#${p.id} — Имя: ${p.name} / Национальность: ${p.nationality} ${
+                                    p.location ? ` / loc: ${p.location.name} x=${p.location.x}, y=${p.location.y}, z=${p.location.z}${p.location.name ? `` : ""}` : ""
+                                }`,
                                 value: p.id,
                             }))}
                             showSearch
@@ -534,15 +546,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                                 <Form.Item
                                     name="locX"
                                     label="x (Float, обяз.)"
-                                    rules={[
-                                        { required: true, message: "Укажи x" },
-                                        {
-                                            validator: (_, v) =>
-                                                v === 0 || v
-                                                    ? Promise.resolve()
-                                                    : Promise.reject(new Error("Значение обязательно")),
-                                        },
-                                    ]}
+                                    rules={[{ required: true, message: "Укажи x" }]}
                                 >
                                     <InputNumber className="dragons-input-number" step={0.01} />
                                 </Form.Item>
@@ -550,15 +554,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                                 <Form.Item
                                     name="locY"
                                     label="y (float, обяз.)"
-                                    rules={[
-                                        { required: true, message: "Укажи y" },
-                                        {
-                                            validator: (_, v) =>
-                                                v === 0 || v
-                                                    ? Promise.resolve()
-                                                    : Promise.reject(new Error("Значение обязательно")),
-                                        },
-                                    ]}
+                                    rules={[{ required: true, message: "Укажи y" }]}
                                 >
                                     <InputNumber className="dragons-input-number" step={0.01} />
                                 </Form.Item>
@@ -566,23 +562,12 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                                 <Form.Item
                                     name="locZ"
                                     label="z (Integer, обяз.)"
-                                    rules={[
-                                        { required: true, message: "Укажи z" },
-                                        {
-                                            validator: (_, v) =>
-                                                v === 0 || v
-                                                    ? Promise.resolve()
-                                                    : Promise.reject(new Error("Значение обязательно")),
-                                        },
-                                    ]}
+                                    rules={[{ required: true, message: "Укажи z" }]}
                                 >
                                     <InputNumber className="dragons-input-number" precision={0} />
                                 </Form.Item>
 
-                                <Form.Item
-                                    name="locName"
-                                    label="name (может быть пусто)"
-                                >
+                                <Form.Item name="locName" label="name (может быть пусто)">
                                     <Input />
                                 </Form.Item>
                             </>
@@ -590,23 +575,19 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     </>
                 )}
 
-                {/* 5) Возраст */}
+                {/* Характеристики */}
                 <Divider className="dragons-divider">Характеристики дракона</Divider>
                 <Form.Item
                     name="age"
                     label="Возраст (> 0)"
                     rules={[
                         { required: true, message: "Укажи возраст" },
-                        {
-                            validator: (_, v) =>
-                                Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Значение должно быть > 0")),
-                        },
+                        { validator: (_, v) => Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Значение должно быть > 0")) },
                     ]}
                 >
                     <InputNumber className="dragons-input-number" min={1} precision={0} />
                 </Form.Item>
 
-                {/* 6) Описание */}
                 <Form.Item
                     name="description"
                     label="Описание"
@@ -615,7 +596,6 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     <Input.TextArea rows={3} />
                 </Form.Item>
 
-                {/* 7) Размах крыльев */}
                 <Form.Item
                     name="wingspan"
                     label="Размах крыльев (> 0, можно пусто)"
@@ -633,12 +613,15 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                     <InputNumber className="dragons-input-number" min={0} />
                 </Form.Item>
 
-                {/* 8) Тип */}
                 <Form.Item name="type" label="Тип (enum, можно пусто)">
-                    <Select allowClear options={DRAGON_TYPES.map((t) => ({ label: t, value: t }))} placeholder="Не выбран" />
+                    <Select
+                        allowClear
+                        options={DRAGON_TYPES.map((t) => ({ label: t, value: t }))}
+                        placeholder="Не выбран"
+                    />
                 </Form.Item>
 
-                {/* 9) Голова */}
+                {/* Голова */}
                 <Divider className="dragons-divider">Голова дракона</Divider>
                 <div className="dragons-segment-row">
                     <span className="dragons-segment-label">Режим головы:</span>
@@ -675,10 +658,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                             label="size (целое > 0)"
                             rules={[
                                 { required: true, message: "Укажи size" },
-                                {
-                                    validator: (_, v) =>
-                                        Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")),
-                                },
+                                { validator: (_, v) => Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")) },
                             ]}
                         >
                             <InputNumber className="dragons-input-number" min={1} precision={0} />
@@ -688,10 +668,7 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                             label="eyesCount (целое > 0)"
                             rules={[
                                 { required: true, message: "Укажи eyesCount" },
-                                {
-                                    validator: (_, v) =>
-                                        Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")),
-                                },
+                                { validator: (_, v) => Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")) },
                             ]}
                         >
                             <InputNumber className="dragons-input-number" min={1} precision={0} />
@@ -701,17 +678,13 @@ const EditDragonModal = ({ dragon, visible, onCancel, onSuccess }) => {
                             label="toothCount (целое > 0)"
                             rules={[
                                 { required: true, message: "Укажи toothCount" },
-                                {
-                                    validator: (_, v) =>
-                                        Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")),
-                                },
+                                { validator: (_, v) => Number(v) > 0 ? Promise.resolve() : Promise.reject(new Error("Должно быть > 0")) },
                             ]}
                         >
                             <InputNumber className="dragons-input-number" min={1} precision={0} />
                         </Form.Item>
                     </>
                 )}
-
             </Form>
         </Modal>
     );

@@ -1,15 +1,21 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Table, Button, Space, Modal, Form, InputNumber, Input, Typography, Card, Alert } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import useApiClient from '../../utils/requestController';
 import { useSelector } from 'react-redux';
+
+import { GetApi, CreateApi, DeleteApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title } = Typography;
 
+const getApi = new GetApi(apiConfig);
+const createApi = new CreateApi(apiConfig);
+const deleteApi = new DeleteApi(apiConfig);
+
 const HeadsPage = () => {
     const navigate = useNavigate();
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
     const [data, setData] = useState([]);
@@ -18,7 +24,7 @@ const HeadsPage = () => {
     const [form] = Form.useForm();
     const [saveLoading, setSaveLoading] = useState(false);
 
-    // --- Уведомления пользователя (как в CavesPage) ---
+
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -45,9 +51,9 @@ const HeadsPage = () => {
             timersRef.current = {};
         };
     }, []);
-    // --- конец уведомлений ---
 
-    // Состояние фильтров
+
+
     const [filters, setFilters] = useState({
         id: '',
         size: '',
@@ -56,7 +62,7 @@ const HeadsPage = () => {
     });
 
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({ ...prev, [key]: value }));
     };
 
     const resetFilters = () => {
@@ -66,10 +72,11 @@ const HeadsPage = () => {
             eyesCount: '',
             toothCount: ''
         });
+        notify('info', 'Фильтры сброшены');
     };
 
-    // Отфильтрованные данные (клиентская фильтрация)
-    const filteredData = data.filter(item => {
+
+    const filteredData = data.filter((item) => {
         const idMatch = !filters.id || String(item.id).includes(filters.id.trim());
         const sizeMatch = !filters.size || String(item.size ?? '').includes(filters.size.trim());
         const eyesMatch = !filters.eyesCount || String(item.eyesCount ?? '').includes(filters.eyesCount.trim());
@@ -93,7 +100,7 @@ const HeadsPage = () => {
             ),
             dataIndex: 'id',
             key: 'id',
-            width: 100,
+            width: 100
         },
         {
             title: (
@@ -110,7 +117,7 @@ const HeadsPage = () => {
             ),
             dataIndex: 'size',
             key: 'size',
-            render: (size) => size != null ? Number(size).toLocaleString() : '—'
+            render: (size) => (size != null ? Number(size).toLocaleString() : '—')
         },
         {
             title: (
@@ -127,7 +134,7 @@ const HeadsPage = () => {
             ),
             dataIndex: 'eyesCount',
             key: 'eyesCount',
-            render: (v) => v != null ? v : '—'
+            render: (v) => (v != null ? v : '—')
         },
         {
             title: (
@@ -144,7 +151,7 @@ const HeadsPage = () => {
             ),
             dataIndex: 'toothCount',
             key: 'toothCount',
-            render: (v) => v != null ? v : '—'
+            render: (v) => (v != null ? v : '—')
         },
         {
             title: 'Действия',
@@ -152,25 +159,21 @@ const HeadsPage = () => {
             width: 160,
             render: (_, record) => (
                 <Space>
-                    <Button
-                        size="small"
-                        danger
-                        onClick={() => handleDelete(record.id)}
-                    >
+                    <Button size="small" danger onClick={() => handleDelete(record.id)}>
                         Удалить
                     </Button>
                 </Space>
-            ),
-        },
+            )
+        }
     ];
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/getHead', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const { data: heads } = await getApi.getHeads({
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setData(response.data || []);
+            setData(heads || []);
         } catch (error) {
             console.error('Ошибка загрузки голов драконов:', error);
             notify('error', 'Ошибка загрузки голов драконов');
@@ -183,7 +186,7 @@ const HeadsPage = () => {
         try {
             const values = await form.validateFields();
 
-            // Валидация: все поля должны быть > 0
+
             if (Number(values.size) <= 0 || Number(values.eyesCount) <= 0 || Number(values.toothCount) <= 0) {
                 notify('warning', 'Все значения должны быть больше 0');
                 return;
@@ -197,11 +200,10 @@ const HeadsPage = () => {
                 toothCount: Number(values.toothCount)
             };
 
-            // Всегда POST — создание новой записи
-            await api.post('/createHead', payload, {
+            await createApi.createHead(payload, {
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
                 }
             });
 
@@ -223,10 +225,9 @@ const HeadsPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            await api.delete(`/deleteHeadById/${id}`, {
+            await deleteApi.deleteHeadById(id, {
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
             });
             notify('success', 'Голова удалена');
@@ -239,24 +240,18 @@ const HeadsPage = () => {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [token]);
 
     return (
         <div style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <Title level={3}>Управление головами драконов</Title>
                 <Space>
-                    <Button onClick={() => navigate('/refs')}>
-                        Назад к справочникам
-                    </Button>
+                    <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
                     <Button icon={<ReloadOutlined />} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setModalVisible(true)}
-                    >
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                         Добавить голову
                     </Button>
                 </Space>
@@ -284,11 +279,7 @@ const HeadsPage = () => {
                 cancelText="Отмена"
                 confirmLoading={saveLoading}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleSave}
-                >
+                <Form form={form} layout="vertical" onFinish={handleSave}>
                     <Form.Item
                         name="size"
                         label="Размер головы"

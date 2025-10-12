@@ -1,20 +1,23 @@
-import {Button, Form, Input, message, Popconfirm, Space, Table, Tag, Typography} from "antd";
-import React, {useEffect, useMemo, useRef, useState} from "react";
-import {CheckOutlined, CloseOutlined, ReloadOutlined, SearchOutlined} from "@ant-design/icons";
-import useApiClient from "../utils/requestController";
+import { Button, Form, Input, message, Popconfirm, Space, Table, Tag, Typography } from "antd";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { CheckOutlined, CloseOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import { Client } from "@stomp/stompjs";
-import {useSelector} from "react-redux";
-import {useNavigate} from "react-router-dom"; // Добавляем useNavigate
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
-/** ===== API endpoints ===== */
-const API_LIST = "/getDragons";
+import { DragonApi } from "../api";
+import { apiConfig } from "../apiConfig";
+
+
+
+const getApi = new DragonApi(apiConfig);
 
 const DRAGON_TYPES = ["WATER", "UNDERGROUND", "AIR", "FIRE"];
 const COLOR_ENUM = ["RED", "BLACK", "YELLOW", "WHITE", "BROWN"];
 const COUNTRY_ENUM = ["FRANCE", "SPAIN", "VATICAN", "ITALY", "NORTH_KOREA"];
 const { Title, Text } = Typography;
 
-// --- настройки под ваш бэкенд ---
+
 const WS_URL = "ws://localhost:8080/ws";
 const TOPIC = "/topic/echo";
 
@@ -40,22 +43,22 @@ function normalizeDragon(d) {
     };
 }
 
-// Функция для парсинга входящих WebSocket сообщений
+
 function parseWebSocketMessage(messageBody) {
     try {
         const data = JSON.parse(messageBody);
 
-        // Если приходит массив драконов
+
         if (Array.isArray(data)) {
             return data.map(normalizeDragon);
         }
 
-        // Если приходит один дракон
+
         if (data.id !== undefined) {
             return [normalizeDragon(data)];
         }
 
-        // Если приходит объект с массивом драконов
+
         if (data.dragons && Array.isArray(data.dragons)) {
             return data.dragons.map(normalizeDragon);
         }
@@ -69,7 +72,7 @@ function parseWebSocketMessage(messageBody) {
 }
 
 const DragonTable = () => {
-    const navigate = useNavigate(); // Хук для навигации
+    const navigate = useNavigate();
 
     const idSearchInputRef = useRef(null);
     const ageSearchInputRef = useRef(null);
@@ -83,8 +86,6 @@ const DragonTable = () => {
     const killerLocationYSearchInputRef = useRef(null);
     const killerLocationZSearchInputRef = useRef(null);
     const killerLocationNameSearchInputRef = useRef(null);
-    const descriptionSearchInputRef = useRef(null);
-    const api = useApiClient();
     const [data, setData] = useState([]);
     const [loadingTable, setLoadingTable] = useState(false);
     const nameSearchInputRef = useRef(null);
@@ -92,66 +93,57 @@ const DragonTable = () => {
     const ySearchInputRef = useRef(null);
     const depthSearchInputRef = useRef(null);
     const treasuresSearchInputRef = useRef(null);
+    const descriptionSearchInputRef = useRef(null);
 
     const token = useSelector((state) => state.auth.token);
 
-    /** ===== Справочники ===== */
+
     const [persons] = useState([]);
     const [locations] = useState([]);
 
-    /** ===== WebSocket ===== */
+
     const [connected, setConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
 
     const clientRef = useRef(null);
     const subRef = useRef(null);
 
-    // Функция для обработки клика по строке
+
     const handleRowClick = (record) => {
-        // Переходим на страницу детальной информации с ID дракона
         navigate(`/dragons/${record.id}`);
     };
 
-    // Функция для настройки свойств строки
     const getRowProps = (record) => {
         return {
             onClick: () => handleRowClick(record),
             style: {
-                cursor: 'pointer',
-                transition: 'all 0.2s',
+                cursor: "pointer",
+                transition: "all 0.2s",
             },
             onMouseEnter: (e) => {
-                e.currentTarget.style.backgroundColor = '#f5f5f5';
-                e.currentTarget.style.transform = 'scale(1.01)';
+                e.currentTarget.style.backgroundColor = "#f5f5f5";
+                e.currentTarget.style.transform = "scale(1.01)";
             },
             onMouseLeave: (e) => {
-                e.currentTarget.style.backgroundColor = '';
-                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.backgroundColor = "";
+                e.currentTarget.style.transform = "scale(1)";
             },
         };
     };
 
-    // Функция для обновления данных таблицы из WebSocket
+
     const updateTableFromWebSocket = (messageBody) => {
         try {
             const newDragons = parseWebSocketMessage(messageBody);
             if (newDragons.length > 0) {
-                setData(prevData => {
-                    // Объединяем старые и новые данные, избегая дубликатов по ID
-                    const mergedData = [...prevData];
-
-                    newDragons.forEach(newDragon => {
-                        const existingIndex = mergedData.findIndex(d => d.id === newDragon.id);
-                        if (existingIndex >= 0) {
-                            // Обновляем существующую запись
-                            mergedData[existingIndex] = newDragon;
-                        } else {
-                            // Добавляем новую запись в начало
-                            mergedData.unshift(newDragon);
-                        }
+                setData((prevData) => {
+                    const merged = [...prevData];
+                    newDragons.forEach((nd) => {
+                        const idx = merged.findIndex((d) => d.id === nd.id);
+                        if (idx >= 0) merged[idx] = nd;
+                        else merged.unshift(nd);
                     });
-
-                    return mergedData.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+                    return merged.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
                 });
 
                 message.success(`Обновлено ${newDragons.length} записей через WebSocket`);
@@ -169,8 +161,7 @@ const DragonTable = () => {
         if (clientRef.current) {
             try {
                 clientRef.current.deactivate();
-            } catch (e) {
-            }
+            } catch (e) {}
             clientRef.current = null;
             subRef.current = null;
         }
@@ -182,36 +173,34 @@ const DragonTable = () => {
             heartbeatOutgoing: 10000,
             connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
             onConnect: () => {
-                console.log("INFO", "CONNECTED");
                 setConnected(true);
                 setConnecting(false);
 
                 try {
                     if (subRef.current) {
-                        try { subRef.current.unsubscribe(); } catch (_) {}
+                        try {
+                            subRef.current.unsubscribe();
+                        } catch (_) {}
                         subRef.current = null;
                     }
 
                     subRef.current = client.subscribe(TOPIC, (message) => {
-                        console.log("WS MESSAGE:", message.body);
                         updateTableFromWebSocket(message.body);
                     });
-                    console.log("INFO", `SUBSCRIBED to ${TOPIC}`);
                 } catch (e) {
-                    console.log("ERROR", `Subscribe failed: ${e?.message || String(e)}`);
+                    message.error("Не удалось подписаться на канал WebSocket");
                 }
             },
             onWebSocketClose: () => {
-                console.log("INFO", "WS CLOSED");
                 setConnected(false);
                 setConnecting(false);
             },
             onStompError: (frame) => {
-                console.log("ERROR", `STOMP ERROR: ${(frame.headers && frame.headers["message"]) || ""} ${frame.body || ""}`.trim());
-                message.error("Ошибка WebSocket соединения");
+                message.error(
+                    `STOMP ERROR: ${((frame.headers && frame.headers["message"]) || "")} ${(frame.body || "")}`.trim()
+                );
             },
-            onWebSocketError: (ev) => {
-                console.log("ERROR", `WS ERROR: ${ev?.message || JSON.stringify(ev)}`);
+            onWebSocketError: () => {
                 message.error("Ошибка WebSocket соединения");
             },
             debug: () => {},
@@ -219,18 +208,20 @@ const DragonTable = () => {
 
         client.activate();
         clientRef.current = client;
-        console.log("INFO", "CONNECTING...");
     };
 
-    // Функция очистки WebSocket
     const cleanupWS = () => {
         try {
             if (subRef.current) {
-                try { subRef.current.unsubscribe(); } catch (_) {}
+                try {
+                    subRef.current.unsubscribe();
+                } catch (_) {}
                 subRef.current = null;
             }
             if (clientRef.current) {
-                try { clientRef.current.deactivate(); } catch (_) {}
+                try {
+                    clientRef.current.deactivate();
+                } catch (_) {}
                 clientRef.current = null;
             }
         } finally {
@@ -241,8 +232,6 @@ const DragonTable = () => {
 
     useEffect(() => {
         connect();
-
-        // Cleanup при размонтировании
         return () => {
             cleanupWS();
         };
@@ -288,9 +277,7 @@ const DragonTable = () => {
             if (visible) setTimeout(() => ref?.current?.select(), 100);
         },
         filterIcon: (filtered) => (
-            <SearchOutlined
-                className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"}
-            />
+            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"} />
         ),
     });
 
@@ -330,40 +317,40 @@ const DragonTable = () => {
             if (visible) setTimeout(() => ref?.current?.select(), 100);
         },
         filterIcon: (filtered) => (
-            <SearchOutlined
-                className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"}
-            />
+            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"} />
         ),
     });
 
     const loadList = async () => {
         try {
             setLoadingTable(true);
-            const response = await api.get(
-                API_LIST,
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+
+
+            const { data: payload } = await getApi.getDragons({
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
             let rawData = [];
-            if (Array.isArray(response.data)) {
-                rawData = response.data;
-            } else if (response.data && Array.isArray(response.data.dragons)) {
-                rawData = response.data.dragons;
-            } else if (response.data) {
-                rawData = [response.data];
+            if (Array.isArray(payload)) {
+                rawData = payload;
+            } else if (payload && Array.isArray(payload.dragons)) {
+                rawData = payload.dragons;
+            } else if (payload) {
+                rawData = [payload];
             }
 
             const normalized = rawData.map(normalizeDragon).sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
             setData(normalized);
-
         } catch (e) {
             console.error("Ошибка загрузки данных:", e);
-            message.error(`Ошибка загрузки: ${e.response?.data?.message || e.message}`);
+            const errMsg =
+                e?.response?.data?.message ||
+                (typeof e?.response?.data === "string" ? e.response.data : null) ||
+                e?.message ||
+                "Ошибка загрузки";
+            message.error(`Ошибка загрузки: ${errMsg}`);
             setData([]);
         } finally {
             setLoadingTable(false);
@@ -372,7 +359,8 @@ const DragonTable = () => {
 
     useEffect(() => {
         loadList();
-    }, []);
+
+    }, [token]);
 
     const columns = useMemo(
         () => [
@@ -494,11 +482,7 @@ const DragonTable = () => {
                 },
                 sorter: (a, b) => (a.cave?.numberOfTreasures ?? 0) - (b.cave?.numberOfTreasures ?? 0),
                 render: (cave) =>
-                    cave?.numberOfTreasures !== undefined ? (
-                        <Text code>{cave.numberOfTreasures}</Text>
-                    ) : (
-                        "—"
-                    ),
+                    cave?.numberOfTreasures !== undefined ? <Text code>{cave.numberOfTreasures}</Text> : "—",
             },
             {
                 title: "Голова дракона",
@@ -603,10 +587,7 @@ const DragonTable = () => {
                         dataIndex: ["killer", "hairColor"],
                         key: "killerHairColor",
                         width: 140,
-                        filters: [
-                            ...COLOR_ENUM.map((c) => ({ text: c, value: c })),
-                            { text: "Не указан", value: "NULL" }
-                        ],
+                        filters: [...COLOR_ENUM.map((c) => ({ text: c, value: c })), { text: "Не указан", value: "NULL" }],
                         onFilter: (val, rec) => {
                             if (val === "NULL") return rec.killer?.hairColor === null || rec.killer?.hairColor === undefined;
                             return rec.killer?.hairColor === val;
@@ -682,8 +663,7 @@ const DragonTable = () => {
                 dataIndex: "creationDate",
                 key: "creationDate",
                 width: 180,
-                sorter: (a, b) =>
-                    new Date(a.creationDate ?? 0).getTime() - new Date(b.creationDate ?? 0).getTime(),
+                sorter: (a, b) => new Date(a.creationDate ?? 0).getTime() - new Date(b.creationDate ?? 0).getTime(),
                 filters: [
                     { text: "Сегодня", value: "today" },
                     { text: "За последнюю неделю", value: "week" },
@@ -697,12 +677,14 @@ const DragonTable = () => {
                     switch (value) {
                         case "today":
                             return recordDate.toDateString() === now.toDateString();
-                        case "week":
+                        case "week": {
                             const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
                             return recordDate >= weekAgo;
-                        case "month":
+                        }
+                        case "month": {
                             const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
                             return recordDate >= monthAgo;
+                        }
                         default:
                             return true;
                     }
@@ -733,10 +715,7 @@ const DragonTable = () => {
                     {connected ? "CONNECTED" : connecting ? "CONNECTING..." : "DISCONNECTED"}
                 </Tag>
 
-                <Button
-                    icon={<ReloadOutlined />}
-                    onClick={loadList}
-                >
+                <Button icon={<ReloadOutlined />} onClick={loadList}>
                     Обновить данные
                 </Button>
             </Space>
@@ -748,7 +727,7 @@ const DragonTable = () => {
                 pagination={{ pageSize: 10, showSizeChanger: true }}
                 scroll={{ x: 1400 }}
                 size="middle"
-                onRow={getRowProps} // Добавляем обработчики для строк
+                onRow={getRowProps}
             />
         </div>
     );

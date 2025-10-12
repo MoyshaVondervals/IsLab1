@@ -8,7 +8,6 @@ import org.springframework.stereotype.Controller;
 
 @Controller
 public class EchoWsController {
-    // Клиент шлёт в /app/echo → ответы публикуются в /topic/echo
     @MessageMapping("/echo")
     @SendTo("/topic/echo")
     public String echo(@Payload String body) {

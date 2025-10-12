@@ -18,7 +18,6 @@ public class StubService {
 
     private HeadRepository headRepository;
 
-    // Создаем или получаем "заглушечные" координаты
     public Coordinates getStubCoordinates() {
         return
                 Coordinates.builder()

@@ -42,9 +42,9 @@ public interface DragonRepository extends JpaRepository<Dragon, Long> {
 
     @Query("SELECT d FROM Dragon d WHERE d.cave.numberOfTreasures = " +
             "(SELECT MAX(d2.cave.numberOfTreasures) FROM Dragon d2)")
-    Dragon findDragonWithDeepestCave();
+    List<Dragon> findDragonWithDeepestCave();
 
-    Dragon findFirstByHead_SizeGreaterThanOrderByHead_SizeAsc(long size);
+    List<Dragon> findAllByHead_SizeGreaterThanOrderByHead_SizeAsc(long size);
 
     Dragon findFirstByOrderByAgeDescIdAsc();
 

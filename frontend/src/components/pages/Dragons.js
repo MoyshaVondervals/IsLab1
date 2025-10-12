@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Layout,
@@ -18,45 +19,41 @@ import { PlusOutlined } from "@ant-design/icons";
 import "../../styles/dragons.css";
 import { useSelector } from "react-redux";
 import DragonTable from "../DragonTable";
-import useApiClient from "../../utils/requestController";
+
+import { GetApi, DragonApi } from "../../api";
+import { apiConfig } from "../../apiConfig";
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
-/** ===== API endpoints ===== */
-const API_CREATE = "/createDragon";
-const API_CAVES = "/getCaves";
-const API_PERSONS = "/getPerson";
-const API_HEADS = "/getHead";
-const API_COORDS = "/getCoordinates";
-const API_LOCATIONS = "/getLocation";
 
-/** ===== Enums ===== */
 const DRAGON_TYPES = ["WATER", "UNDERGROUND", "AIR", "FIRE"];
 const COLOR_ENUM = ["RED", "BLACK", "YELLOW", "WHITE", "BROWN"];
 const COUNTRY_ENUM = ["FRANCE", "SPAIN", "VATICAN", "ITALY", "NORTH_KOREA"];
 
+const getApi = new GetApi(apiConfig);
+const createApi = new DragonApi(apiConfig);
+
 const Dragons = () => {
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
-    /** ===== Таблица/данные ===== */
+
     const [data, setData] = useState([]);
     const [loadingTable, setLoadingTable] = useState(false);
 
-    /** ===== Модалка создания ===== */
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [creating, setCreating] = useState(false);
     const [form] = Form.useForm();
 
-    /** ===== Поиск в шапке таблицы (refs сохранены, даже если сейчас не используются) ===== */
+
     const nameSearchInputRef = useRef(null);
     const xSearchInputRef = useRef(null);
     const ySearchInputRef = useRef(null);
     const depthSearchInputRef = useRef(null);
     const treasuresSearchInputRef = useRef(null);
 
-    /** ===== Справочники ===== */
+
     const [caves, setCaves] = useState([]);
     const [persons, setPersons] = useState([]);
     const [heads, setHeads] = useState([]);
@@ -64,7 +61,7 @@ const Dragons = () => {
     const [locations, setLocations] = useState([]);
     const [loadingRefs, setLoadingRefs] = useState(false);
 
-    /** ---------- Уведомления (панель снизу) ---------- */
+
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -91,27 +88,21 @@ const Dragons = () => {
             timersRef.current = {};
         };
     }, []);
-    /** ---------- конец уведомлений ---------- */
+
+
+    const authHeader = { Authorization: `Bearer ${token}` };
 
     const loadRefs = async () => {
         setLoadingRefs(true);
         try {
-            const commonOpts = {
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            };
+            const entries = [
+                ["caves", await getApi.getCaves({headers: authHeader})],
+                ["persons", await getApi.getPersons({headers: authHeader})],
+                ["heads", await getApi.getHeads({headers: authHeader})],
+                ["coords", await getApi.getCoordinates({headers: authHeader})],
+                ["locations", await getApi.getLocations({headers: authHeader})],
+            ];
 
-            const reqs = {
-                caves: api.get(API_CAVES.trim(), commonOpts),
-                persons: api.get(API_PERSONS.trim(), commonOpts),
-                heads: api.get(API_HEADS.trim(), commonOpts),
-                coords: api.get(API_COORDS.trim(), commonOpts),
-                locations: api.get(API_LOCATIONS.trim(), commonOpts),
-            };
-
-            const entries = Object.entries(reqs);
             const settled = await Promise.allSettled(entries.map(([, p]) => p));
 
             const results = {};
@@ -138,18 +129,12 @@ const Dragons = () => {
             setLocations(results.locations);
 
             if (failed.length > 0) {
-                notify(
-                    "warning",
-                    `Часть справочников не загрузилась: ${failed.join(", ")}`
-                );
+                notify("warning", `Часть справочников не загрузилась: ${failed.join(", ")}`);
             } else {
                 notify("success", "Справочники загружены");
             }
         } catch (_e) {
-            notify(
-                "error",
-                "Не удалось загрузить справочники (неожиданная ошибка)"
-            );
+            notify("error", "Не удалось загрузить справочники (неожиданная ошибка)");
             setCaves([]);
             setPersons([]);
             setHeads([]);
@@ -160,12 +145,12 @@ const Dragons = () => {
         }
     };
 
-    /** =================== Режимы зависимых сущностей =================== */
-    const [modeCave, setModeCave] = useState("choose"); // choose | create
-    const [modeKiller, setModeKiller] = useState("none"); // none | choose | create
-    const [modeHead, setModeHead] = useState("choose"); // choose | create
-    const [modeCoords, setModeCoords] = useState("choose"); // choose | create
-    const [modeKillerLocation, setModeKillerLocation] = useState("choose"); // choose | create
+
+    const [modeCave, setModeCave] = useState("choose");
+    const [modeKiller, setModeKiller] = useState("none");
+    const [modeHead, setModeHead] = useState("choose");
+    const [modeCoords, setModeCoords] = useState("choose");
+    const [modeKillerLocation, setModeKillerLocation] = useState("choose");
 
     const openCreateModal = async () => {
         setIsModalOpen(true);
@@ -177,46 +162,34 @@ const Dragons = () => {
         setModeKillerLocation("choose");
         await loadRefs();
     };
-
-    /** ===== Валидации ===== */
     const requiredNonEmptyString = (_, v) =>
         v && String(v).trim().length > 0
             ? Promise.resolve()
             : Promise.reject(new Error("Строка не может быть пустой"));
 
-    /** ======================= СОХРАНЕНИЕ (ОТДЕЛЬНАЯ ФУНКЦИЯ) ======================= */
+
     const handleSaveClick = async () => {
         try {
             const values = await form.validateFields();
 
-            // Coordinates (обязательное поле)
             let coordinatesPayload = null;
             if (modeCoords === "choose") {
                 if (values.coordinatesExistingId == null) {
-                    throw new Error(
-                        "Выбери существующие координаты или переключись на создание новых"
-                    );
+                    throw new Error("Выбери существующие координаты или переключись на создание новых");
                 }
                 coordinatesPayload = { id: Number(values.coordinatesExistingId) };
             } else {
                 const x = values.coordX;
                 const y = values.coordY;
-                if (
-                    x === undefined ||
-                    x === null ||
-                    y === undefined ||
-                    y === null
-                ) {
+                if (x === undefined || x === null || y === undefined || y === null) {
                     throw new Error("Укажи X и Y для координат");
                 }
                 coordinatesPayload = { x: Number(x), y: Number(y) };
             }
 
-            // Cave
             let cavePayload = null;
             if (modeCave === "choose") {
-                cavePayload =
-                    values.caveExistingId != null ? { id: Number(values.caveExistingId) } : null;
+                cavePayload = values.caveExistingId != null ? { id: Number(values.caveExistingId) } : null;
             } else {
                 const num = values.caveCreateNumberOfTreasures;
                 cavePayload = {
@@ -225,33 +198,21 @@ const Dragons = () => {
                 };
             }
 
-            // Killer
             let killerPayload = null;
             if (modeKiller === "choose") {
-                killerPayload =
-                    values.killerExistingId != null ? { id: Number(values.killerExistingId) } : null;
+                killerPayload = values.killerExistingId != null ? { id: Number(values.killerExistingId) } : null;
             } else if (modeKiller === "create") {
-                // Location inside Killer
                 let locationPayload = null;
                 if (modeKillerLocation === "choose") {
                     if (values.killerLocationExistingId == null) {
-                        throw new Error(
-                            "Для убийцы выбери локацию или переключись на создание новой"
-                        );
+                        throw new Error("Для убийцы выбери локацию или переключись на создание новой");
                     }
                     locationPayload = { id: Number(values.killerLocationExistingId) };
                 } else {
                     const lx = values.locX;
                     const ly = values.locY;
                     const lz = values.locZ;
-                    if (
-                        lx === undefined ||
-                        lx === null ||
-                        ly === undefined ||
-                        ly === null ||
-                        lz === undefined ||
-                        lz === null
-                    ) {
+                    if (lx === undefined || lx === null || ly === undefined || ly === null || lz === undefined || lz === null) {
                         throw new Error("Для новой локации убийцы укажи x, y и z");
                     }
                     locationPayload = {
@@ -272,11 +233,10 @@ const Dragons = () => {
                 };
             }
 
-            // Head
+
             let headPayload = null;
             if (modeHead === "choose") {
-                headPayload =
-                    values.headExistingId != null ? { id: Number(values.headExistingId) } : null;
+                headPayload = values.headExistingId != null ? { id: Number(values.headExistingId) } : null;
             } else {
                 headPayload = {
                     size: Number(values.headSize),
@@ -301,10 +261,10 @@ const Dragons = () => {
             };
 
             setCreating(true);
-            await api.post(API_CREATE, payload, {
+            await createApi.createDragon(payload, {
                 headers: {
                     "Content-Type": "application/json",
-                    Authorization: token ? `Bearer ${token}` : "",
+                    Authorization: `Bearer ${token}`,
                 },
             });
 

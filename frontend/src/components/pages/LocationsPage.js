@@ -1,15 +1,21 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Table, Button, Space, Modal, Form, Input, InputNumber, Typography, Card, Tag, Alert } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import useApiClient from '../../utils/requestController';
 import { useSelector } from 'react-redux';
+
+import { GetApi, CreateApi, DeleteApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title, Text } = Typography;
 
+const getApi = new GetApi(apiConfig);
+const createApi = new CreateApi(apiConfig);
+const deleteApi = new DeleteApi(apiConfig);
+
 const LocationsPage = () => {
     const navigate = useNavigate();
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
     const [data, setData] = useState([]);
@@ -18,7 +24,7 @@ const LocationsPage = () => {
     const [form] = Form.useForm();
     const [saveLoading, setSaveLoading] = useState(false);
 
-    // --- Уведомления пользователя (как в CavesPage) ---
+
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -45,9 +51,9 @@ const LocationsPage = () => {
             timersRef.current = {};
         };
     }, []);
-    // --- конец уведомлений ---
 
-    // фильтры
+
+
     const [filters, setFilters] = useState({
         id: '',
         x: '',
@@ -57,7 +63,7 @@ const LocationsPage = () => {
     });
 
     const handleFilterChange = (key, value) => {
-        setFilters(prev => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({ ...prev, [key]: value }));
     };
 
     const resetFilters = () => {
@@ -68,15 +74,17 @@ const LocationsPage = () => {
             z: '',
             name: ''
         });
+        notify('info', 'Фильтры сброшены');
     };
 
-    // клиентская фильтрация
-    const filteredData = data.filter(item => {
+
+    const filteredData = data.filter((item) => {
         const idMatch = !filters.id || String(item.id).includes(filters.id.trim());
         const xMatch = !filters.x || String(item.x ?? '').includes(filters.x.trim());
         const yMatch = !filters.y || String(item.y ?? '').includes(filters.y.trim());
         const zMatch = !filters.z || String(item.z ?? '').includes(filters.z.trim());
-        const nameMatch = !filters.name || String(item.name ?? '').toLowerCase().includes(filters.name.trim().toLowerCase());
+        const nameMatch =
+            !filters.name || String(item.name ?? '').toLowerCase().includes(filters.name.trim().toLowerCase());
         return idMatch && xMatch && yMatch && zMatch && nameMatch;
     });
 
@@ -96,7 +104,7 @@ const LocationsPage = () => {
             ),
             dataIndex: 'id',
             key: 'id',
-            width: 100,
+            width: 100
         },
         {
             title: (
@@ -113,7 +121,7 @@ const LocationsPage = () => {
             ),
             dataIndex: 'x',
             key: 'x',
-            render: (x) => x !== null && x !== undefined ? <Tag color="blue">{x}</Tag> : '—'
+            render: (x) => (x !== null && x !== undefined ? <Tag color="blue">{x}</Tag> : '—')
         },
         {
             title: (
@@ -130,7 +138,7 @@ const LocationsPage = () => {
             ),
             dataIndex: 'y',
             key: 'y',
-            render: (y) => y !== null && y !== undefined ? <Tag color="green">{y}</Tag> : '—'
+            render: (y) => (y !== null && y !== undefined ? <Tag color="green">{y}</Tag> : '—')
         },
         {
             title: (
@@ -147,7 +155,7 @@ const LocationsPage = () => {
             ),
             dataIndex: 'z',
             key: 'z',
-            render: (z) => z !== null && z !== undefined ? <Tag color="orange">{z}</Tag> : '—'
+            render: (z) => (z !== null && z !== undefined ? <Tag color="orange">{z}</Tag> : '—')
         },
         {
             title: (
@@ -174,18 +182,18 @@ const LocationsPage = () => {
                 <Button size="small" danger onClick={() => handleDelete(record.id)}>
                     Удалить
                 </Button>
-            ),
-        },
+            )
+        }
     ];
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/getLocation', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const { data: locations } = await getApi.getLocations({
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setData(response?.data || []);
-        } catch (error) {
+            setData(locations ?? []);
+        } catch (_error) {
             notify('error', 'Ошибка загрузки локаций');
         } finally {
             setLoading(false);
@@ -210,10 +218,10 @@ const LocationsPage = () => {
                 name: values.name || null
             };
 
-            await api.post('/createLocation', payload, {
+            await createApi.createLocation(payload, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
             });
 
@@ -234,22 +242,22 @@ const LocationsPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            await api.delete(`/deleteLocationById/${id}`, {
+            await deleteApi.deleteLocationById(id, {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
             });
-            notify('success', 'Локация удалена');
-            loadData();
-        } catch (error) {
+        } catch (_error) {
             notify('error', 'Ошибка удаления');
+            return;
         }
+        notify('success', 'Локация удалена');
+        loadData();
     };
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [token]);
 
     return (
         <div style={{ padding: '20px' }}>
@@ -260,11 +268,7 @@ const LocationsPage = () => {
                     <Button icon={<ReloadOutlined />} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setModalVisible(true)}
-                    >
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                         Добавить локацию
                     </Button>
                 </Space>

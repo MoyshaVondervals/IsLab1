@@ -11,17 +11,16 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws") // точка подключения
-                .setAllowedOriginPatterns("*"); // при необходимости сузьте домены
-        // Если нужен фоллбек под старые браузеры:
-        // registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*");
+
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        // Клиенты будут подписываться на /topic/...
+
         registry.enableSimpleBroker("/topic");
-        // Префикс для сообщений от клиента к серверу (если будете обрабатывать client->server)
+
         registry.setApplicationDestinationPrefixes("/app");
     }
 }

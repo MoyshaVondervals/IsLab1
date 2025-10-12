@@ -2,6 +2,7 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://localhost:8080",
   "dependencies": {
     "@ant-design/icons": "^6.0.2",
     "@reduxjs/toolkit": "^2.9.0",
@@ -22,9 +23,13 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "npm run openapi:gen && react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "openapi:pull:json": "curl -sS http://localhost:8080/v3/api-docs -o openapi.json",
+    "openapi:pull:yaml": "curl -sS \"http://localhost:8080/v3/api-docs?format=yaml\" -o openapi.yaml",
+    "openapi:gen": "rimraf ./src/api && openapi-generator-cli generate -i ./openapi.json -g typescript-axios -o ./src/api --additional-properties=supportsES6=true,withSeparateModelsAndApi=true,apiPackage=apis,modelPackage=models,modelPropertyNaming=original",
+    "openapi:regen": "npm run openapi:pull:json && npm run openapi:gen"
   },
   "eslintConfig": {
     "extends": [
@@ -43,5 +48,13 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.25.0",
+    "@types/node": "^24.7.2",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.1",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.9.3"
   }
 }

@@ -1,52 +1,54 @@
-import React, { useState} from 'react'
-import '../../../styles/login-page.css'
-import {useNavigate} from "react-router-dom";
-import {useDispatch} from "react-redux";
-import {setAuthData} from "../../../redux/authSlice";
-import axios from 'axios';
-import useApiClient from "../../../utils/requestController";
+import React, { useState } from 'react';
+import '../../../styles/login-page.css';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setAuthData } from '../../../redux/authSlice';
 
+import { AuthenticationApi } from '../../../api';
+import { apiConfig } from '../../../apiConfig';
 
-
+const authApi = new AuthenticationApi(apiConfig);
 const LoginPage = () => {
-  const api = useApiClient();
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const [message, setMessage] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [message, setMessage] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
   const handleSubmit = async () => {
     try {
       if (!username || !password) {
-        setMessage("Заполните оба поля");
-        return; // важно
+        setMessage('Заполните оба поля');
+        return;
       }
 
-      const response = await api.post('/auth/sign-in', {
-        username,
-        password
-      });
+      const body = { username: username, password: password };
+
+      const { data } = await authApi.authSignIn(body);
+
+      localStorage.setItem('auth_token', data.token);
+
       dispatch(setAuthData({
-        token: response.data.token,
-        username: response.data.username,
-        role: response.data.role,
+        token: data.token,
+        username: data.username,
+        role: data.role
       }));
-      navigate("/dragons")
-    }catch (error) {
-      console.error('Login failed:', error);
+
+      navigate('/dragons');
+    } catch (err) {
+      console.error('Login failed:', err);
       setMessage('Неправильный логин или пароль.');
     }
   };
+
   return (
       <div>
-
         <div className="login-page-wrapper">
-          <div className={`authority-page-container1`}>
+          <div className="authority-page-container1">
             <div className="authority-page-container2">
-              <h1 className="authority-page-header">
-                Вход в аккаунт
-              </h1>
+              <h1 className="authority-page-header">Вход в аккаунт</h1>
+
               <input
                   type="text"
                   required
@@ -64,19 +66,28 @@ const LoginPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
               />
 
-              <button type="submit" className="authority-page-submit-button button"
-              onClick={handleSubmit}>
+              <button
+                  type="submit"
+                  className="authority-page-submit-button button"
+                  onClick={handleSubmit}
+              >
                 Вход
               </button>
-              <button type="button" className="dont-have-account button"
-              onClick={() => navigate('/auth/sign-up')}>
+
+              <button
+                  type="button"
+                  className="dont-have-account button"
+                  onClick={() => navigate('/auth/sign-up')}
+              >
                 Нет аккаунта :(
               </button>
+
               <div className="message">{message}</div>
             </div>
           </div>
         </div>
       </div>
-)
-}
-export default LoginPage
+  );
+};
+
+export default LoginPage;

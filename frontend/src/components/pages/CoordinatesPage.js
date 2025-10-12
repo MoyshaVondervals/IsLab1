@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Table,
@@ -13,14 +14,19 @@ import {
 } from 'antd';
 import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import useApiClient from '../../utils/requestController';
 import { useSelector } from 'react-redux';
+
+import { GetApi, CreateApi, DeleteApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title } = Typography;
 
+const getApi = new GetApi(apiConfig);
+const createApi = new CreateApi(apiConfig);
+const deleteApi = new DeleteApi(apiConfig);
+
 const CoordinatesPage = () => {
     const navigate = useNavigate();
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
     const [data, setData] = useState([]);
@@ -30,7 +36,7 @@ const CoordinatesPage = () => {
     const [saveLoading, setSaveLoading] = useState(false);
     const [searchFilters, setSearchFilters] = useState({ id: '', x: '', y: '' });
 
-    // --- Уведомления пользователя (панель снизу) ---
+
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -57,7 +63,7 @@ const CoordinatesPage = () => {
             timersRef.current = {};
         };
     }, []);
-    // --- конец уведомлений ---
+
 
     const handleSearchChange = (key, value) => {
         setSearchFilters((prev) => ({ ...prev, [key]: value }));
@@ -88,7 +94,7 @@ const CoordinatesPage = () => {
             ),
             dataIndex: 'id',
             key: 'id',
-            width: 100,
+            width: 100
         },
         {
             title: (
@@ -136,17 +142,17 @@ const CoordinatesPage = () => {
                         Удалить
                     </Button>
                 </Space>
-            ),
-        },
+            )
+        }
     ];
 
     const loadCoordinates = async () => {
         setLoading(true);
         try {
-            const response = await api.get('/getCoordinates', {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const { data: coords } = await getApi.getCoordinates({
+                headers: { Authorization: `Bearer ${token}` }
             });
-            setData(response.data || []);
+            setData(coords || []);
         } catch (_error) {
             notify('error', 'Ошибка загрузки координат');
         } finally {
@@ -165,10 +171,10 @@ const CoordinatesPage = () => {
                 y: values.y
             };
 
-            await api.post('/createCoordinates', payload, {
+            await createApi.createCoordinates(payload, {
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
                 }
             });
 
@@ -189,10 +195,9 @@ const CoordinatesPage = () => {
 
     const handleDelete = async (id) => {
         try {
-            await api.delete(`/deleteCoordinatesById/${id}`, {
+            await deleteApi.deleteCoordinatesById(id, {
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    Authorization: `Bearer ${token}`
                 }
             });
             notify('success', 'Координаты удалены');
@@ -209,28 +214,18 @@ const CoordinatesPage = () => {
 
     useEffect(() => {
         loadCoordinates();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [token]);
 
     return (
         <div style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <Title level={3}>Управление координатами</Title>
                 <Space>
-                    <Button onClick={() => navigate('/refs')}>
-                        Назад к справочникам
-                    </Button>
-                    <Button
-                        icon={<ReloadOutlined />}
-                        onClick={resetFilters}
-                    >
+                    <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
+                    <Button icon={<ReloadOutlined />} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={() => setModalVisible(true)}
-                    >
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                         Добавить
                     </Button>
                 </Space>
@@ -259,18 +254,10 @@ const CoordinatesPage = () => {
                 confirmLoading={saveLoading}
             >
                 <Form form={form} layout="vertical" onFinish={handleSave}>
-                    <Form.Item
-                        name="x"
-                        label="Координата X"
-                        rules={[{ required: true, message: 'Введите X' }]}
-                    >
+                    <Form.Item name="x" label="Координата X" rules={[{ required: true, message: 'Введите X' }]}>
                         <InputNumber style={{ width: '100%' }} step={0.000001} />
                     </Form.Item>
-                    <Form.Item
-                        name="y"
-                        label="Координата Y"
-                        rules={[{ required: true, message: 'Введите Y' }]}
-                    >
+                    <Form.Item name="y" label="Координата Y" rules={[{ required: true, message: 'Введите Y' }]}>
                         <InputNumber style={{ width: '100%' }} step={0.000001} />
                     </Form.Item>
                 </Form>

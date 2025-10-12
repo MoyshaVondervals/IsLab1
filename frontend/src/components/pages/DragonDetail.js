@@ -1,24 +1,29 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, Table, Tag, Typography, Spin, Space, Row, Col, Alert } from 'antd';
 import { ArrowLeftOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import useApiClient from '../../utils/requestController';
 import { useSelector } from 'react-redux';
-import EditDragonModal from "../EditDragonModal";
+
+import EditDragonModal from '../EditDragonModal';
+import { DragonApi } from '../../api';
+import { apiConfig } from '../../apiConfig';
 
 const { Title, Text } = Typography;
+
+const dragonApi = new DragonApi(apiConfig);
+
 
 const DragonDetail = () => {
     const [editModalVisible, setEditModalVisible] = useState(false);
     const { id } = useParams();
     const navigate = useNavigate();
-    const api = useApiClient();
     const token = useSelector((state) => state.auth.token);
 
     const [loading, setLoading] = useState(true);
     const [dragon, setDragon] = useState(null);
 
-    // --- Уведомления пользователя (панель снизу) ---
+
     const [notices, setNotices] = useState([]);
     const timersRef = useRef({});
 
@@ -45,18 +50,17 @@ const DragonDetail = () => {
             timersRef.current = {};
         };
     }, []);
-    // --- конец уведомлений ---
+
 
     const loadDragon = async () => {
         try {
             setLoading(true);
-            const response = await api.get(`/getDragonById/${id}`, {
+            const { data } = await dragonApi.getDragonById(Number(id), {
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                },
             });
-            setDragon(response.data);
+            setDragon(data);
             notify('success', 'Информация о драконе загружена');
         } catch (_error) {
             notify('error', 'Не удалось загрузить информацию о драконе');
@@ -68,11 +72,10 @@ const DragonDetail = () => {
 
     const handleDelete = async () => {
         try {
-            await api.delete(`/deleteDragonById/${id}`, {
+            await dragonApi.deleteDragonById(Number(id), {
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                }
+                    Authorization: `Bearer ${token}`,
+                },
             });
             notify('success', 'Дракон успешно удалён');
             navigate('/dragons');
@@ -89,49 +92,79 @@ const DragonDetail = () => {
         if (id) {
             loadDragon();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [id]);
+    }, [id, token]);
 
-    // Данные для основной таблицы
     const mainData = [
         { key: '1', attribute: 'ID', value: dragon?.id || '—' },
         { key: '2', attribute: 'Имя', value: dragon?.name || '—' },
         { key: '3', attribute: 'Возраст', value: dragon?.age || '—' },
         { key: '4', attribute: 'Размах крыльев', value: dragon?.wingspan || '—' },
         { key: '5', attribute: 'Тип дракона', value: dragon?.type ? <Tag color="blue">{dragon.type}</Tag> : '—' },
-        { key: '6', attribute: 'Дата создания', value: dragon?.creationDate ? new Date(dragon.creationDate).toLocaleString() : '—' },
+        {
+            key: '6',
+            attribute: 'Дата создания',
+            value: dragon?.creationDate ? new Date(dragon.creationDate).toLocaleString() : '—',
+        },
         { key: '7', attribute: 'Описание', value: dragon?.description || '—' },
     ];
 
-    const coordinatesData = dragon?.coordinates ? [
-        { key: '1', attribute: 'X', value: dragon.coordinates.x },
-        { key: '2', attribute: 'Y', value: dragon.coordinates.y },
-    ] : [];
+    const coordinatesData = dragon?.coordinates
+        ? [
+            { key: '1', attribute: 'X', value: dragon.coordinates.x },
+            { key: '2', attribute: 'Y', value: dragon.coordinates.y },
+        ]
+        : [];
 
-    const caveData = dragon?.cave ? [
-        { key: '1', attribute: 'Количество сокровищ', value: dragon.cave.numberOfTreasures },
-    ] : [];
+    const caveData = dragon?.cave
+        ? [{ key: '1', attribute: 'Количество сокровищ', value: dragon.cave.numberOfTreasures }]
+        : [];
 
-    const headData = dragon?.head ? [
-        { key: '1', attribute: 'Размер головы', value: dragon.head.size },
-        { key: '2', attribute: 'Количество глаз', value: dragon.head.eyesCount },
-        { key: '3', attribute: 'Количество зубов', value: dragon.head.toothCount },
-    ] : [];
+    const headData = dragon?.head
+        ? [
+            { key: '1', attribute: 'Размер головы', value: dragon.head.size },
+            { key: '2', attribute: 'Количество глаз', value: dragon.head.eyesCount },
+            { key: '3', attribute: 'Количество зубов', value: dragon.head.toothCount },
+        ]
+        : [];
 
-    const killerData = dragon?.killer ? [
-        { key: '1', attribute: 'Имя', value: dragon.killer.name },
-        { key: '2', attribute: 'Паспорт ID', value: dragon.killer.passportID },
-        { key: '3', attribute: 'Национальность', value: dragon.killer.nationality ? <Tag color="green">{dragon.killer.nationality}</Tag> : '—' },
-        { key: '4', attribute: 'Цвет глаз', value: dragon.killer.eyeColor ? <Tag color={dragon.killer.eyeColor.toLowerCase()}>{dragon.killer.eyeColor}</Tag> : '—' },
-        { key: '5', attribute: 'Цвет волос', value: dragon.killer.hairColor ? <Tag color={dragon.killer.hairColor.toLowerCase()}>{dragon.killer.hairColor}</Tag> : '—' },
-    ] : [];
+    const killerData = dragon?.killer
+        ? [
+            { key: '1', attribute: 'Имя', value: dragon.killer.name },
+            { key: '2', attribute: 'Паспорт ID', value: dragon.killer.passportID },
+            {
+                key: '3',
+                attribute: 'Национальность',
+                value: dragon.killer.nationality ? <Tag color="green">{dragon.killer.nationality}</Tag> : '—',
+            },
+            {
+                key: '4',
+                attribute: 'Цвет глаз',
+                value: dragon.killer.eyeColor ? (
+                    <Tag color={dragon.killer.eyeColor.toLowerCase()}>{dragon.killer.eyeColor}</Tag>
+                ) : (
+                    '—'
+                ),
+            },
+            {
+                key: '5',
+                attribute: 'Цвет волос',
+                value: dragon.killer.hairColor ? (
+                    <Tag color={dragon.killer.hairColor.toLowerCase()}>{dragon.killer.hairColor}</Tag>
+                ) : (
+                    '—'
+                ),
+            },
+        ]
+        : [];
 
-    const killerLocationData = dragon?.killer?.location ? [
-        { key: '1', attribute: 'X', value: dragon.killer.location.x },
-        { key: '2', attribute: 'Y', value: dragon.killer.location.y },
-        { key: '3', attribute: 'Z', value: dragon.killer.location.z },
-        { key: '4', attribute: 'Название', value: dragon.killer.location.name },
-    ] : [];
+    const killerLocationData = dragon?.killer?.location
+        ? [
+            { key: '1', attribute: 'X', value: dragon.killer.location.x },
+            { key: '2', attribute: 'Y', value: dragon.killer.location.y },
+            { key: '3', attribute: 'Z', value: dragon.killer.location.z },
+            { key: '4', attribute: 'Название', value: dragon.killer.location.name },
+        ]
+        : [];
 
     const tableColumns = [
         {
@@ -170,25 +203,14 @@ const DragonDetail = () => {
 
     return (
         <div style={{ padding: '24px' }}>
-
-
             <Space direction="vertical" style={{ width: '100%' }} size="large">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Button
-                        type="text"
-                        icon={<ArrowLeftOutlined />}
-                        onClick={() => navigate('/dragons')}
-                    >
+                    <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dragons')}>
                         Назад к списку
                     </Button>
 
                     <Space>
-                        <Button
-                            type="primary"
-                            icon={<EditOutlined />}
-                            onClick={handleEdit}
-                            style={{ marginRight: 8 }}
-                        >
+                        <Button type="primary" icon={<EditOutlined />} onClick={handleEdit} style={{ marginRight: 8 }}>
                             Редактировать
                         </Button>
 
@@ -203,11 +225,7 @@ const DragonDetail = () => {
                             }}
                         />
 
-                        <Button
-                            danger
-                            icon={<DeleteOutlined />}
-                            onClick={handleDelete}
-                        >
+                        <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
                             Удалить
                         </Button>
                     </Space>
@@ -222,13 +240,7 @@ const DragonDetail = () => {
                         {/* Основная информация */}
                         <Col xs={24} lg={12}>
                             <Card size="small" title="Основная информация" style={{ height: '100%' }}>
-                                <Table
-                                    dataSource={mainData}
-                                    columns={tableColumns}
-                                    pagination={false}
-                                    showHeader={false}
-                                    size="small"
-                                />
+                                <Table dataSource={mainData} columns={tableColumns} pagination={false} showHeader={false} size="small" />
                             </Card>
                         </Col>
 
@@ -236,13 +248,7 @@ const DragonDetail = () => {
                         <Col xs={24} lg={12}>
                             <Card size="small" title="Координаты" style={{ height: '100%' }}>
                                 {coordinatesData.length > 0 ? (
-                                    <Table
-                                        dataSource={coordinatesData}
-                                        columns={tableColumns}
-                                        pagination={false}
-                                        showHeader={false}
-                                        size="small"
-                                    />
+                                    <Table dataSource={coordinatesData} columns={tableColumns} pagination={false} showHeader={false} size="small" />
                                 ) : (
                                     <Text type="secondary">Нет данных</Text>
                                 )}
@@ -253,13 +259,7 @@ const DragonDetail = () => {
                         <Col xs={24} lg={12}>
                             <Card size="small" title="Пещера" style={{ height: '100%' }}>
                                 {caveData.length > 0 ? (
-                                    <Table
-                                        dataSource={caveData}
-                                        columns={tableColumns}
-                                        pagination={false}
-                                        showHeader={false}
-                                        size="small"
-                                    />
+                                    <Table dataSource={caveData} columns={tableColumns} pagination={false} showHeader={false} size="small" />
                                 ) : (
                                     <Text type="secondary">Нет данных</Text>
                                 )}
@@ -270,13 +270,7 @@ const DragonDetail = () => {
                         <Col xs={24} lg={12}>
                             <Card size="small" title="Голова" style={{ height: '100%' }}>
                                 {headData.length > 0 ? (
-                                    <Table
-                                        dataSource={headData}
-                                        columns={tableColumns}
-                                        pagination={false}
-                                        showHeader={false}
-                                        size="small"
-                                    />
+                                    <Table dataSource={headData} columns={tableColumns} pagination={false} showHeader={false} size="small" />
                                 ) : (
                                     <Text type="secondary">Нет данных</Text>
                                 )}
@@ -287,13 +281,7 @@ const DragonDetail = () => {
                         <Col xs={24} lg={12}>
                             <Card size="small" title="Убийца" style={{ height: '100%' }}>
                                 {killerData.length > 0 ? (
-                                    <Table
-                                        dataSource={killerData}
-                                        columns={tableColumns}
-                                        pagination={false}
-                                        showHeader={false}
-                                        size="small"
-                                    />
+                                    <Table dataSource={killerData} columns={tableColumns} pagination={false} showHeader={false} size="small" />
                                 ) : (
                                     <Text type="secondary">Нет данных</Text>
                                 )}
@@ -326,14 +314,7 @@ const DragonDetail = () => {
                     <Card size="small" title={`Уведомления (${notices.length})`}>
                         <Space direction="vertical" style={{ width: '100%' }}>
                             {notices.map((n) => (
-                                <Alert
-                                    key={n.id}
-                                    type={n.type}
-                                    message={n.content}
-                                    showIcon
-                                    closable
-                                    onClose={() => removeNotice(n.id)}
-                                />
+                                <Alert key={n.id} type={n.type} message={n.content} showIcon closable onClose={() => removeNotice(n.id)} />
                             ))}
                         </Space>
                     </Card>

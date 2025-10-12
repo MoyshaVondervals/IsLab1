@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.awt.print.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -229,15 +230,21 @@ public class DragonService {
     }
 
     public DragonDTO findDragonWithMaxCave() {
-        Dragon dragon = dragonRepository.findDragonWithDeepestCave();
-        DragonDTO dto = convertToDTO(dragon);
+        List<Dragon> dragon = dragonRepository.findDragonWithDeepestCave();
+        Dragon dragon1 = dragon.get(0);
+        DragonDTO dto = convertToDTO(dragon1);
         return dto;
     }
 
-    public DragonDTO findDragonWithHead(long size) {
-        Dragon dragon = dragonRepository.findFirstByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
-        return  convertToDTO(dragon);
+
+    public List<DragonDTO> findDragonsWithHeadGreater(long size) {
+        List<Dragon> dragons = dragonRepository
+                .findAllByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
+        return dragons.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
+
 
     public DragonDTO getOldestDragon() {
         Dragon dragon = dragonRepository.findFirstByOrderByAgeDescIdAsc();
