@@ -30,13 +30,14 @@ jobs:
         run: |
           npm ci
           CI=false DISABLE_ESLINT_PLUGIN=true npm run build
+
       - name: Upload frontend build artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: frontend/build
 
-      # копируем React build внутрь ресурсов Spring (чтобы JAR отдавал статику сам)
+      # встраивание фронта в ресурсы Spring (опционально — можно оставить)
       - name: Embed frontend build into Spring resources
         run: |
           rm -rf src/main/resources/static/*
@@ -62,7 +63,7 @@ jobs:
           mkdir -p artifact
           cp build/libs/*.jar artifact/app.jar
 
-      - name: Upload artifact
+      - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: islab1-artifacts
@@ -74,11 +75,24 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Download artifact
+      - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
           name: islab1-artifacts
           path: artifact
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend_build
+
+      - name: Show downloaded files (debug)
+        run: |
+          echo "=== artifact/"
+          ls -la artifact
+          echo "=== frontend_build/"
+          ls -la frontend_build || true
 
       - name: Known hosts
         run: |
@@ -100,13 +114,11 @@ jobs:
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
           set -eEo pipefail
-    
+
           APP_DIR="$HOME/apps/islab1"
-    
-          # 1) Директории
-          mkdir -p "$APP_DIR/releases" "$APP_DIR/current" "$APP_DIR/logs"
-    
-          # 2) .env из секретов
+          mkdir -p "$APP_DIR/releases" "$APP_DIR/current" "$APP_DIR/logs" "$APP_DIR/site"
+
+          # .env (из секретов)
           cat > "$APP_DIR/.env" <<ENVEOF
           SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
           SERVER_PORT=${SERVER_PORT}
@@ -114,59 +126,65 @@ jobs:
           SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
           SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
           ENVEOF
-    
-          # 3) start.sh
+
+          # start.sh (ищет JAR в current/ и прокидывает -Dspring.*)
           cat > "$APP_DIR/start.sh" <<'SH'
           #!/usr/bin/env bash
           set -eEo pipefail
           APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           cd "$APP_DIR"
           mkdir -p logs
-    
-          if [ -f app.pid ] && ps -p "$(cat app.pid)" > /dev/null 2>&1; then
-          echo "Already running with PID $(cat app.pid)"
-          exit 0
-          fi
-    
+
           set -a
           [ -f "$APP_DIR/.env" ] && . "$APP_DIR/.env"
           set +a
-    
-          PORT_OPT=""
-          if [ -n "${SERVER_PORT:-}" ]; then
-          PORT_OPT="-Dserver.port=${SERVER_PORT}"
+
+          JAR="$APP_DIR/current/app.jar"
+          if [ ! -f "$JAR" ]; then
+            echo "JAR not found: $JAR" | tee -a "$APP_DIR/logs/app.err.log"
+            exit 1
           fi
-    
-          nohup java $PORT_OPT -jar "$APP_DIR/app.jar" >> "$APP_DIR/logs/app.out.log" 2>> "$APP_DIR/logs/app.err.log" &
+
+          if [ -f app.pid ] && ps -p "$(cat app.pid 2>/dev/null)" > /dev/null 2>&1; then
+            echo "Already running with PID $(cat app.pid)"
+            exit 0
+          fi
+
+          JAVA_OPTS=()
+          [ -n "${SERVER_PORT:-}" ] && JAVA_OPTS+=( "-Dserver.port=${SERVER_PORT}" )
+          [ -n "${SPRING_PROFILES_ACTIVE:-}" ] && JAVA_OPTS+=( "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}" )
+          [ -n "${SPRING_DATASOURCE_URL:-}" ]      && JAVA_OPTS+=( "-Dspring.datasource.url=${SPRING_DATASOURCE_URL}" )
+          [ -n "${SPRING_DATASOURCE_USERNAME:-}" ] && JAVA_OPTS+=( "-Dspring.datasource.username=${SPRING_DATASOURCE_USERNAME}" )
+          [ -n "${SPRING_DATASOURCE_PASSWORD:-}" ] && JAVA_OPTS+=( "-Dspring.datasource.password=${SPRING_DATASOURCE_PASSWORD}" )
+
+          echo "Starting at $(date)" >> "$APP_DIR/logs/app.out.log"
+          echo "JAVA_OPTS: \${JAVA_OPTS[*]//${SPRING_DATASOURCE_PASSWORD}/****}" >> "$APP_DIR/logs/app.out.log"
+
+          nohup java "${JAVA_OPTS[@]}" -jar "$JAR" >> "$APP_DIR/logs/app.out.log" 2>> "$APP_DIR/logs/app.err.log" &
           echo $! > "$APP_DIR/app.pid"
           echo "Started, PID $(cat "$APP_DIR/app.pid")"
           SH
           chmod 755 "$APP_DIR/start.sh"
-    
-          # 4) stop.sh
+
+          # stop.sh
           cat > "$APP_DIR/stop.sh" <<'SH'
           #!/usr/bin/env bash
           set -eEo pipefail
           APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           cd "$APP_DIR"
-    
-          if [ ! -f app.pid ]; then
-          echo "No app.pid"
-          exit 0
-          fi
-    
-          PID="$(cat app.pid || true)"
+          if [ ! -f app.pid ]; then echo "No app.pid"; exit 0; fi
+          PID="$(cat app.pid 2>/dev/null || true)"
           if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
-          kill "$PID" || true
-          sleep 2
-          if ps -p "$PID" > /dev/null 2>&1; then kill -9 "$PID" || true; fi
+            kill "$PID" || true
+            sleep 2
+            ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
           fi
           rm -f app.pid
           echo "Stopped"
           SH
           chmod 755 "$APP_DIR/stop.sh"
-    
-          # 5) restart.sh
+
+          # restart.sh
           cat > "$APP_DIR/restart.sh" <<'SH'
           #!/usr/bin/env bash
           set -eEo pipefail
@@ -175,35 +193,25 @@ jobs:
           "$APP_DIR/start.sh"
           SH
           chmod 755 "$APP_DIR/restart.sh"
-    
-          # 6) status.sh
+
+          # status.sh
           cat > "$APP_DIR/status.sh" <<'SH'
           #!/usr/bin/env bash
           set -eEo pipefail
           APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-          if [ -f "$APP_DIR/app.pid" ]; then
-          PID="$(cat "$APP_DIR/app.pid" 2>/dev/null || true)"
-          else
-          PID=""
-          fi
-    
-          if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
-          echo "RUNNING PID $PID"
-          else
-          echo "STOPPED"
-          fi
-    
-          echo "----- Last 50 log lines (app.out.log) -----"
+          JAR="$APP_DIR/current/app.jar"
+          echo "APP_DIR: $APP_DIR"
+          echo "JAR: $JAR"
+          [ -f "$JAR" ] && echo "JAR exists" || echo "JAR MISSING"
+          if [ -f "$APP_DIR/app.pid" ]; then PID="$(cat "$APP_DIR/app.pid" 2>/dev/null || true)"; else PID=""; fi
+          if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then echo "RUNNING PID $PID"; else echo "STOPPED"; fi
+          echo "----- Last 50 app.out.log -----"
           tail -n 50 "$APP_DIR/logs/app.out.log" 2>/dev/null || true
-          echo "----- Last 50 log lines (app.err.log) -----"
+          echo "----- Last 50 app.err.log -----"
           tail -n 50 "$APP_DIR/logs/app.err.log" 2>/dev/null || true
           SH
           chmod 755 "$APP_DIR/status.sh"
-    
-          # 7) Проверка наличия файлов
-          ls -la "$APP_DIR"
-          test -x "$APP_DIR/start.sh"
-          test -x "$APP_DIR/restart.sh"
+
           REMOTE
 
       - name: Upload JAR to Helios
@@ -211,28 +219,23 @@ jobs:
           rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
             artifact/app.jar \
             "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/releases/app-$(date +%Y%m%d%H%M%S).jar"
+
       - name: Activate and restart on Helios
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
           set -eEo pipefail
           APP_DIR="$HOME/apps/islab1"
-    
           LATEST="$(ls -1t "$APP_DIR/releases"/app-*.jar | head -n1)"
           if [ -z "$LATEST" ] || [ ! -f "$LATEST" ]; then
-          echo "No JAR found in $APP_DIR/releases"
-          exit 1
+            echo "No JAR found in $APP_DIR/releases"; exit 1
           fi
-    
           cp "$LATEST" "$APP_DIR/current/app.jar"
-    
           if [ -x "$APP_DIR/restart.sh" ]; then
-          "$APP_DIR/restart.sh"
+            "$APP_DIR/restart.sh"
           else
-          echo "restart.sh missing, doing manual restart"
-          if [ -x "$APP_DIR/stop.sh" ]; then "$APP_DIR/stop.sh" || true; fi
-          if [ -x "$APP_DIR/start.sh" ]; then "$APP_DIR/start.sh"; else echo "start.sh missing"; exit 1; fi
+            [ -x "$APP_DIR/stop.sh" ] && "$APP_DIR/stop.sh" || true
+            [ -x "$APP_DIR/start.sh" ] && "$APP_DIR/start.sh" || { echo "start.sh missing"; exit 1; }
           fi
-    
           "$APP_DIR/status.sh" || true
           REMOTE
 
@@ -251,7 +254,7 @@ jobs:
             SITE="$APP/site"
             LOG="$APP/logs"
             mkdir -p "$SITE" "$LOG"
-            
+
             cat > "$APP/site_start.sh" <<'SH'
             #!/usr/bin/env bash
             set -eEo pipefail
@@ -259,38 +262,34 @@ jobs:
             SITE="$APP/site"
             LOG="$APP/logs"
             PORT="${FRONT_PORT:-8082}"
-            
             if [ -f "$APP/site.pid" ] && ps -p "$(cat "$APP/site.pid" 2>/dev/null)" > /dev/null 2>&1; then
-            echo "Static server already running, PID $(cat "$APP/site.pid")"
-            exit 0
+              echo "Static server already running, PID $(cat "$APP/site.pid")"; exit 0
             fi
-            
-            # запускаем python3 http.server, корень — каталог сайта
             nohup python3 -m http.server "$PORT" --directory "$SITE" >> "$LOG/site.out.log" 2>> "$LOG/site.err.log" &
             echo $! > "$APP/site.pid"
             echo "Static server started on :$PORT, PID $(cat "$APP/site.pid")"
             SH
             chmod 755 "$APP/site_start.sh"
-            
+
             cat > "$APP/site_stop.sh" <<'SH'
             #!/usr/bin/env bash
             set -eEo pipefail
             APP="$HOME/apps/islab1"
             if [ -f "$APP/site.pid" ]; then
-            PID="$(cat "$APP/site.pid" 2>/dev/null || true)"
-            if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
-            kill "$PID" || true
-            sleep 1
-            ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
-            fi
-            rm -f "$APP/site.pid"
+              PID="$(cat "$APP/site.pid" 2>/dev/null || true)"
+              if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
+                kill "$PID" || true
+                sleep 1
+                ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
+              fi
+              rm -f "$APP/site.pid"
             fi
             echo "Static server stopped"
             SH
             chmod 755 "$APP/site_stop.sh"
             REMOTE
-      - name: Download frontend build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend_build
+
+      - name: Start static server (idempotent)
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" '~/apps/islab1/site_start.sh || true'
