@@ -30,6 +30,11 @@ jobs:
         run: |
           npm ci
           CI=false DISABLE_ESLINT_PLUGIN=true npm run build
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
 
       # копируем React build внутрь ресурсов Spring (чтобы JAR отдавал статику сам)
       - name: Embed frontend build into Spring resources
@@ -234,7 +239,7 @@ jobs:
       - name: Upload frontend build to Helios
         run: |
           rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
-            frontend/build/ \
+            frontend_build/ \
             "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/site/"
 
       - name: Create static server scripts (python http.server)
@@ -284,3 +289,8 @@ jobs:
             SH
             chmod 755 "$APP/site_stop.sh"
             REMOTE
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend_build
