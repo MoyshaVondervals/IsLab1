@@ -85,7 +85,6 @@ jobs:
 
       - name: Create app directories & scripts on server (idempotent)
         env:
-          HELIOS_APP_DIR: ${{ secrets.HELIOS_APP_DIR }}
           SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
@@ -94,12 +93,12 @@ jobs:
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
           set -eEo pipefail
-        
-          APP_DIR="${HELIOS_APP_DIR}"
-        
+    
+          APP_DIR="$HOME/apps/islab1"
+    
           # 1) Директории
           mkdir -p "$APP_DIR/releases" "$APP_DIR/current" "$APP_DIR/logs"
-        
+    
           # 2) .env из секретов
           cat > "$APP_DIR/.env" <<ENVEOF
           SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
@@ -108,7 +107,7 @@ jobs:
           SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
           SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
           ENVEOF
-        
+    
           # 3) start.sh
           cat > "$APP_DIR/start.sh" <<'SH'
           #!/usr/bin/env bash
@@ -116,39 +115,39 @@ jobs:
           APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           cd "$APP_DIR"
           mkdir -p logs
-        
+    
           if [ -f app.pid ] && ps -p "$(cat app.pid)" > /dev/null 2>&1; then
           echo "Already running with PID $(cat app.pid)"
           exit 0
           fi
-        
+    
           set -a
           [ -f "$APP_DIR/.env" ] && . "$APP_DIR/.env"
           set +a
-        
+    
           PORT_OPT=""
           if [ -n "${SERVER_PORT:-}" ]; then
           PORT_OPT="-Dserver.port=${SERVER_PORT}"
           fi
-        
+    
           nohup java $PORT_OPT -jar "$APP_DIR/app.jar" >> "$APP_DIR/logs/app.out.log" 2>> "$APP_DIR/logs/app.err.log" &
           echo $! > "$APP_DIR/app.pid"
           echo "Started, PID $(cat "$APP_DIR/app.pid")"
           SH
           chmod 755 "$APP_DIR/start.sh"
-        
+    
           # 4) stop.sh
           cat > "$APP_DIR/stop.sh" <<'SH'
           #!/usr/bin/env bash
           set -eEo pipefail
           APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           cd "$APP_DIR"
-        
+    
           if [ ! -f app.pid ]; then
           echo "No app.pid"
           exit 0
           fi
-        
+    
           PID="$(cat app.pid || true)"
           if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
           kill "$PID" || true
@@ -159,7 +158,7 @@ jobs:
           echo "Stopped"
           SH
           chmod 755 "$APP_DIR/stop.sh"
-        
+    
           # 5) restart.sh
           cat > "$APP_DIR/restart.sh" <<'SH'
           #!/usr/bin/env bash
@@ -169,7 +168,7 @@ jobs:
           "$APP_DIR/start.sh"
           SH
           chmod 755 "$APP_DIR/restart.sh"
-        
+    
           # 6) status.sh
           cat > "$APP_DIR/status.sh" <<'SH'
           #!/usr/bin/env bash
@@ -180,21 +179,21 @@ jobs:
           else
           PID=""
           fi
-        
+    
           if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
           echo "RUNNING PID $PID"
           else
           echo "STOPPED"
           fi
-        
+    
           echo "----- Last 50 log lines (app.out.log) -----"
           tail -n 50 "$APP_DIR/logs/app.out.log" 2>/dev/null || true
           echo "----- Last 50 log lines (app.err.log) -----"
           tail -n 50 "$APP_DIR/logs/app.err.log" 2>/dev/null || true
           SH
           chmod 755 "$APP_DIR/status.sh"
-        
-          # 7) Проверка, что скрипты создались
+    
+          # 7) Проверка наличия файлов
           ls -la "$APP_DIR"
           test -x "$APP_DIR/start.sh"
           test -x "$APP_DIR/restart.sh"
@@ -204,32 +203,28 @@ jobs:
         run: |
           rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
             artifact/app.jar \
-            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:${{ secrets.HELIOS_APP_DIR }}/releases/app-$(date +%Y%m%d%H%M%S).jar"
-
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/releases/app-$(date +%Y%m%d%H%M%S).jar"
       - name: Activate and restart on Helios
-        env:
-          HELIOS_APP_DIR: ${{ secrets.HELIOS_APP_DIR }}
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
           set -eEo pipefail
-          APP_DIR="${HELIOS_APP_DIR}"
-        
+          APP_DIR="$HOME/apps/islab1"
+    
           LATEST="$(ls -1t "$APP_DIR/releases"/app-*.jar | head -n1)"
           if [ -z "$LATEST" ] || [ ! -f "$LATEST" ]; then
           echo "No JAR found in $APP_DIR/releases"
           exit 1
           fi
-        
+    
           cp "$LATEST" "$APP_DIR/current/app.jar"
-        
-          # Если почему-то нет restart.sh — сделаем «мягкий» запуск напрямую:
-          if [ ! -x "$APP_DIR/restart.sh" ]; then
+    
+          if [ -x "$APP_DIR/restart.sh" ]; then
+          "$APP_DIR/restart.sh"
+          else
           echo "restart.sh missing, doing manual restart"
           if [ -x "$APP_DIR/stop.sh" ]; then "$APP_DIR/stop.sh" || true; fi
           if [ -x "$APP_DIR/start.sh" ]; then "$APP_DIR/start.sh"; else echo "start.sh missing"; exit 1; fi
-          else
-          "$APP_DIR/restart.sh"
           fi
-        
+    
           "$APP_DIR/status.sh" || true
           REMOTE
