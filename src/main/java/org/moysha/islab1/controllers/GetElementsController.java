@@ -21,8 +21,6 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class GetElementsController {
 
-    private final SimpMessagingTemplate template;
-    private final DragonService dragonService;
     private final CaveService caveService;
     private final CoordinatesService coordinatesService;
     private final PersonService personService;

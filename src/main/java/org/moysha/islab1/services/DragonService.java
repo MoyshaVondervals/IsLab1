@@ -25,7 +25,7 @@ public class DragonService {
     private final PersonService personService;
     private final HeadService headService;
     private final LocationService locationService;
-    private final StubService stubService;
+
     private final CoordinatesRepository coordinatesRepository;
     private final CavesRepository cavesRepository;
     private final HeadRepository headRepository;

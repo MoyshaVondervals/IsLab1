@@ -30,11 +30,7 @@ public class DragonController {
 
     private final SimpMessagingTemplate template;
     private final DragonService dragonService;
-    private final CaveService caveService;
-    private final CoordinatesService coordinatesService;
-    private final PersonService personService;
-    private final LocationService locationService;
-    private final HeadService headService;
+
 
     @Operation(
             summary = "Создать дракона",

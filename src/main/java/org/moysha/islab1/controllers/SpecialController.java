@@ -29,13 +29,8 @@ import java.util.List;
 @SecurityRequirement(name = "bearerAuth")
 public class SpecialController {
 
-    private final SimpMessagingTemplate template;
     private final DragonService dragonService;
-    private final CaveService caveService;
-    private final CoordinatesService coordinatesService;
-    private final PersonService personService;
-    private final LocationService locationService;
-    private final HeadService headService;
+
 
     @Operation(summary = "Средний возраст драконов", operationId = "getAvgAge")
     @ApiResponse(responseCode = "200", description = "OK",

@@ -23,13 +23,8 @@ import org.springframework.web.bind.annotation.*;
 @SecurityRequirement(name = "bearerAuth")
 public class DeleteElementsController {
 
-    private final SimpMessagingTemplate template;
     private final DragonService dragonService;
-    private final CaveService caveService;
-    private final CoordinatesService coordinatesService;
     private final PersonService personService;
-    private final LocationService locationService;
-    private final HeadService headService;
     private final CavesRepository cavesRepository;
     private final HeadRepository headRepository;
     private final LocationRepository locationRepository;
