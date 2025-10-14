@@ -1,0 +1,101 @@
+/* Общий лейаут */
+.dragons-layout {
+    min-height: 100vh;
+    background: #f5f5f5;
+}
+
+.dragons-header {
+    background: transparent;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dragons-header-title {
+    margin: 0;
+    color: #111;
+}
+
+.dragons-content {
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+}
+
+/* Центральный контейнер */
+.dragons-container {
+    width: 100%;
+    max-width: 1280px;
+    min-height: 80vh;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08),
+    0 6px 6px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Топбар */
+.dragons-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.dragons-subtitle {
+    margin: 0;
+}
+
+/* Поисковая панель */
+.dragons-searchbar {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.dragons-search-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dragons-search-label {
+    font-size: 12px;
+    color: #666;
+}
+
+.dragons-input {
+    width: 100%;
+}
+
+.dragons-input-number {
+    width: 100%;
+}
+
+.dragons-search-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Таблица */
+.dragons-table-wrapper {
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .dragons-searchbar {
+        grid-template-columns: repeat(3, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .dragons-searchbar {
+        grid-template-columns: 1fr;
+    }
+}
