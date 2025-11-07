@@ -293,3 +293,4 @@ jobs:
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
             "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" '~/apps/islab1/site_start.sh || true'
+
