@@ -1,0 +1,302 @@
+/* Обновлённые стили */
+.header-container {
+  width: 100%;
+  max-width: 100vw;
+  height: 70px;
+  display: flex;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.navbar {
+  width: 100%;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  justify-content: space-between;
+  background-color: var(--dl-color-theme-primary2);
+  box-sizing: border-box;
+}
+
+.logo {
+  height: 50px;
+  object-fit: contain;
+}
+
+.desktop-menu {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-links {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.nav-link {
+  color: var(--dl-color-theme-primary1);
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  opacity: 0.8;
+}
+
+.auth-buttons {
+  display: flex;
+  gap: 16px;
+}
+
+.login-btn {
+  background-color: var(--dl-color-theme-primary1);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+
+
+}
+
+.login-btn span {
+  color: white; /* Белый текст на зеленом фоне */
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.login-btn:hover {
+  opacity: 0.8; /* Светло-серый при наведении */
+}
+
+.register-btn {
+  background-color: var(--dl-color-theme-neutral-dark); /* Зеленый цвет */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+
+}
+
+.register-btn span {
+  color: var(--dl-color-theme-primary1);
+  font-weight: 700;
+}
+
+.register-btn:hover {
+  opacity: 0.8;
+}
+
+.burger-menu {
+  display: none;
+  cursor: pointer;
+}
+
+.burger-icon {
+  width: 24px;
+  height: 24px;
+  fill: var(--dl-color-theme-primary1);
+}
+
+.mobile-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  padding: 24px;
+  z-index: 100;
+  background-color: var(--dl-color-theme-primary2);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.mobile-menu.show {
+  transform: translateX(0);
+}
+
+.mobile-nav {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mobile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.mobile-logo {
+  height: 40px;
+}
+
+.close-menu {
+  cursor: pointer;
+}
+
+.close-icon {
+  width: 24px;
+  height: 24px;
+  fill: var(--dl-color-theme-primary1);
+}
+
+.mobile-links {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.mobile-link {
+  color: var(--dl-color-theme-primary1);
+  font-size: 18px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.mobile-auth-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.mobile-login, .mobile-register {
+  width: 50%; /* 50% ширины */
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mobile-login {
+  background-color: var(--dl-color-theme-primary1); /* Серый цвет */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.mobile-login span {
+  color: white; /* Белый текст на зеленом фоне */
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.mobile-register {
+  background-color: var(--dl-color-theme-neutral-dark); /* Зеленый цвет */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+.mobile-register span {
+  color: var(--dl-color-theme-primary1);
+  font-weight: 700;
+}
+
+.nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+
+.logout-btn, .mobile-logout {
+  background-color: var(--dl-color-theme-accent2);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+.mobile-user-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.user-icon {
+  height: 35px;
+  width: 35px;
+  object-fit: contain;
+}
+
+.zaebalo{
+
+
+
+
+}
+.logout-btn span, .mobile-logout span {
+  color: white;
+  font-weight: 700;
+}
+#logBut {
+  margin-right: 16px;
+  margin-left: 16px;
+}
+
+
+
+
+/* Адаптивность */
+@media (max-width: 991px) {
+  .navbar {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 767px) {
+  .desktop-menu {
+    display: none;
+  }
+
+  .burger-menu {
+    display: flex;
+  }
+
+  .mobile-links {
+    gap: 16px;
+  }
+
+  .mobile-auth-buttons {
+    flex-direction: row; /* Кнопки в ряд */
+    justify-content: center; /* Выравнивание по центру */
+  }
+
+  .mobile-login, .mobile-register {
+    width: 45%; /* Немного меньше 50% для отступов */
+    text-align: center;
+  }
+}
+
+@media (max-width: 479px) {
+  .navbar {
+    padding: 0 12px;
+  }
+
+  .mobile-menu {
+    padding: 16px;
+  }
+
+  .mobile-logo {
+    height: 32px;
+  }
+
+  .mobile-auth-buttons {
+    flex-direction: column; /* На маленьких экранах - колонка */
+    align-items: center; /* Выравнивание по центру */
+  }
+
+  .mobile-login, .mobile-register {
+    width: 80%; /* Шире для удобства нажатия */
+  }
+}

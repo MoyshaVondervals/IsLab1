@@ -1,0 +1,295 @@
+name: Build & Deploy (Helios, no sudo)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_TOOLCHAIN_VERSION: ${{ secrets.JAVA_TOOLCHAIN_VERSION }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------- FRONTEND ----------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & Build Frontend
+        working-directory: frontend
+        env:
+          REACT_APP_API_URL: "http://127.0.0.1:8081/api"
+        run: |
+          npm ci
+          CI=false DISABLE_ESLINT_PLUGIN=true npm run build
+
+      - name: Upload frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
+      # встраивание фронта в ресурсы Spring (опционально — можно оставить)
+      - name: Embed frontend build into Spring resources
+        run: |
+          rm -rf src/main/resources/static/*
+          mkdir -p src/main/resources/static
+          rsync -a --delete frontend/build/ src/main/resources/static/
+
+      # ---------- BACKEND ----------
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_TOOLCHAIN_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant execute for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build Spring Boot (no tests)
+        run: ./gradlew clean bootJar -x test
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifact
+          cp build/libs/*.jar artifact/app.jar
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: islab1-artifacts
+          path: artifact/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: islab1-artifacts
+          path: artifact
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend_build
+
+      - name: Show downloaded files (debug)
+        run: |
+          echo "=== artifact/"
+          ls -la artifact
+          echo "=== frontend_build/"
+          ls -la frontend_build || true
+
+      - name: Known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Write SSH key
+        run: |
+          echo "${{ secrets.HELIOS_SSH_KEY }}" > ~/.ssh/helios_key
+          chmod 600 ~/.ssh/helios_key
+
+      - name: Create app directories & scripts on server (idempotent)
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ secrets.SPRING_PROFILES_ACTIVE }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
+          SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
+          SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
+          set -eEo pipefail
+
+          APP_DIR="$HOME/apps/islab1"
+          mkdir -p "$APP_DIR/releases" "$APP_DIR/current" "$APP_DIR/logs" "$APP_DIR/site"
+
+          # .env (из секретов)
+          cat > "$APP_DIR/.env" <<ENVEOF
+          SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
+          SERVER_PORT=${SERVER_PORT}
+          SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+          SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+          SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+          ENVEOF
+
+          # start.sh (ищет JAR в current/ и прокидывает -Dspring.*)
+          cat > "$APP_DIR/start.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -eEo pipefail
+          APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$APP_DIR"
+          mkdir -p logs
+
+          set -a
+          [ -f "$APP_DIR/.env" ] && . "$APP_DIR/.env"
+          set +a
+
+          JAR="$APP_DIR/current/app.jar"
+          if [ ! -f "$JAR" ]; then
+            echo "JAR not found: $JAR" | tee -a "$APP_DIR/logs/app.err.log"
+            exit 1
+          fi
+
+          if [ -f app.pid ] && ps -p "$(cat app.pid 2>/dev/null)" > /dev/null 2>&1; then
+            echo "Already running with PID $(cat app.pid)"
+            exit 0
+          fi
+
+          JAVA_OPTS=()
+          [ -n "${SERVER_PORT:-}" ] && JAVA_OPTS+=( "-Dserver.port=${SERVER_PORT}" )
+          [ -n "${SPRING_PROFILES_ACTIVE:-}" ] && JAVA_OPTS+=( "-Dspring.profiles.active=${SPRING_PROFILES_ACTIVE}" )
+          [ -n "${SPRING_DATASOURCE_URL:-}" ]      && JAVA_OPTS+=( "-Dspring.datasource.url=${SPRING_DATASOURCE_URL}" )
+          [ -n "${SPRING_DATASOURCE_USERNAME:-}" ] && JAVA_OPTS+=( "-Dspring.datasource.username=${SPRING_DATASOURCE_USERNAME}" )
+          [ -n "${SPRING_DATASOURCE_PASSWORD:-}" ] && JAVA_OPTS+=( "-Dspring.datasource.password=${SPRING_DATASOURCE_PASSWORD}" )
+
+          echo "Starting at $(date)" >> "$APP_DIR/logs/app.out.log"
+          echo "JAVA_OPTS: \${JAVA_OPTS[*]//${SPRING_DATASOURCE_PASSWORD}/****}" >> "$APP_DIR/logs/app.out.log"
+
+          nohup java "${JAVA_OPTS[@]}" -jar "$JAR" >> "$APP_DIR/logs/app.out.log" 2>> "$APP_DIR/logs/app.err.log" &
+          echo $! > "$APP_DIR/app.pid"
+          echo "Started, PID $(cat "$APP_DIR/app.pid")"
+          SH
+          chmod 755 "$APP_DIR/start.sh"
+
+          # stop.sh
+          cat > "$APP_DIR/stop.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -eEo pipefail
+          APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$APP_DIR"
+          if [ ! -f app.pid ]; then echo "No app.pid"; exit 0; fi
+          PID="$(cat app.pid 2>/dev/null || true)"
+          if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
+            kill "$PID" || true
+            sleep 2
+            ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
+          fi
+          rm -f app.pid
+          echo "Stopped"
+          SH
+          chmod 755 "$APP_DIR/stop.sh"
+
+          # restart.sh
+          cat > "$APP_DIR/restart.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -eEo pipefail
+          APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          "$APP_DIR/stop.sh" || true
+          "$APP_DIR/start.sh"
+          SH
+          chmod 755 "$APP_DIR/restart.sh"
+
+          # status.sh
+          cat > "$APP_DIR/status.sh" <<'SH'
+          #!/usr/bin/env bash
+          set -eEo pipefail
+          APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          JAR="$APP_DIR/current/app.jar"
+          echo "APP_DIR: $APP_DIR"
+          echo "JAR: $JAR"
+          [ -f "$JAR" ] && echo "JAR exists" || echo "JAR MISSING"
+          if [ -f "$APP_DIR/app.pid" ]; then PID="$(cat "$APP_DIR/app.pid" 2>/dev/null || true)"; else PID=""; fi
+          if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then echo "RUNNING PID $PID"; else echo "STOPPED"; fi
+          echo "----- Last 50 app.out.log -----"
+          tail -n 50 "$APP_DIR/logs/app.out.log" 2>/dev/null || true
+          echo "----- Last 50 app.err.log -----"
+          tail -n 50 "$APP_DIR/logs/app.err.log" 2>/dev/null || true
+          SH
+          chmod 755 "$APP_DIR/status.sh"
+
+          REMOTE
+
+      - name: Upload JAR to Helios
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
+            artifact/app.jar \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/releases/app-$(date +%Y%m%d%H%M%S).jar"
+
+      - name: Activate and restart on Helios
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
+          set -eEo pipefail
+          APP_DIR="$HOME/apps/islab1"
+          LATEST="$(ls -1t "$APP_DIR/releases"/app-*.jar | head -n1)"
+          if [ -z "$LATEST" ] || [ ! -f "$LATEST" ]; then
+            echo "No JAR found in $APP_DIR/releases"; exit 1
+          fi
+          cp "$LATEST" "$APP_DIR/current/app.jar"
+          if [ -x "$APP_DIR/restart.sh" ]; then
+            "$APP_DIR/restart.sh"
+          else
+            [ -x "$APP_DIR/stop.sh" ] && "$APP_DIR/stop.sh" || true
+            [ -x "$APP_DIR/start.sh" ] && "$APP_DIR/start.sh" || { echo "start.sh missing"; exit 1; }
+          fi
+          "$APP_DIR/status.sh" || true
+          REMOTE
+
+      - name: Upload frontend build to Helios
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/helios_key -p ${{ secrets.HELIOS_SSH_PORT }}" \
+            frontend_build/ \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}:~/apps/islab1/site/"
+
+      - name: Create static server scripts (python http.server)
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            SITE="$APP/site"
+            LOG="$APP/logs"
+            mkdir -p "$SITE" "$LOG"
+
+            cat > "$APP/site_start.sh" <<'SH'
+            #!/usr/bin/env bash
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            SITE="$APP/site"
+            LOG="$APP/logs"
+            PORT="${FRONT_PORT:-8082}"
+            if [ -f "$APP/site.pid" ] && ps -p "$(cat "$APP/site.pid" 2>/dev/null)" > /dev/null 2>&1; then
+              echo "Static server already running, PID $(cat "$APP/site.pid")"; exit 0
+            fi
+            nohup python3 -m http.server "$PORT" --directory "$SITE" >> "$LOG/site.out.log" 2>> "$LOG/site.err.log" &
+            echo $! > "$APP/site.pid"
+            echo "Static server started on :$PORT, PID $(cat "$APP/site.pid")"
+            SH
+            chmod 755 "$APP/site_start.sh"
+
+            cat > "$APP/site_stop.sh" <<'SH'
+            #!/usr/bin/env bash
+            set -eEo pipefail
+            APP="$HOME/apps/islab1"
+            if [ -f "$APP/site.pid" ]; then
+              PID="$(cat "$APP/site.pid" 2>/dev/null || true)"
+              if [ -n "$PID" ] && ps -p "$PID" > /dev/null 2>&1; then
+                kill "$PID" || true
+                sleep 1
+                ps -p "$PID" > /dev/null 2>&1 && kill -9 "$PID" || true
+              fi
+              rm -f "$APP/site.pid"
+            fi
+            echo "Static server stopped"
+            SH
+            chmod 755 "$APP/site_stop.sh"
+            REMOTE
+
+      - name: Start static server (idempotent)
+        run: |
+          ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" '~/apps/islab1/site_start.sh || true'
