@@ -2,7 +2,7 @@ name: Build & Deploy (Helios, no sudo)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "lab2" ]
   workflow_dispatch:
 
 jobs:
