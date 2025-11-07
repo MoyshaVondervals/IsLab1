@@ -40,7 +40,6 @@ public class SpringSecurity {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // --- статика и SPA-ресурсы ---
                         .requestMatchers(
                                 "/", "/index.html",
                                 "/favicon.ico", "/manifest.json",

@@ -16,7 +16,9 @@ import PersonsPage from "./components/pages/PersonsPage";
 import LocationsPage from "./components/pages/LocationsPage";
 import HeadsPage from "./components/pages/HeadsPage";
 import DragonOperationsPage from "./components/pages/DragonOperationsPage";
-import 'antd/dist/reset.css';
+import HistoryPage from "./components/pages/HistoryPage";
+
+import {HistoryOutlined} from "@ant-design/icons";
 
 
 
@@ -52,6 +54,7 @@ function App() {
                             <Route path="/heads" element={<PrivateRoute element={<HeadsPage />} />} />
                             <Route path="/locations" element={<PrivateRoute element={<LocationsPage />} />} />
                             <Route path="/operations" element={<PrivateRoute element={<DragonOperationsPage />} />} />
+                            <Route path="/history" element={<PrivateRoute element={<HistoryPage />} />} />
                         </Routes>
 
                     </BrowserRouter>

@@ -48,5 +48,7 @@ public interface DragonRepository extends JpaRepository<Dragon, Long> {
 
     Dragon findFirstByOrderByAgeDescIdAsc();
 
+    boolean existsById(long id);
+
 
 }

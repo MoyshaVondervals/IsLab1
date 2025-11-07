@@ -5,4 +5,10 @@ public enum DragonType {
     UNDERGROUND,
     AIR,
     FIRE;
+
+//    Vatican AIR
+//    Italy Fire
+//    North Korea Water
+//    France Underground
+
 }

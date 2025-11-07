@@ -34,14 +34,11 @@ const Header = () => {
             <nav className="nav-links">
               <span className="nav-link" onClick={()=>navigate("/dragons")}>Драконы</span>
               <span className="nav-link" onClick={()=>navigate("/refs")}>Вспомогательные объекты</span>
-              <span className="nav-link" onClick={()=>navigate("/operations")}>Операции</span>
+              <span className="nav-link" onClick={()=>navigate("/operations")}>Специальные Важные Операции</span>
+              <span className="nav-link" onClick={()=>navigate("/history")}>История операций</span>
 
 
-              {role === "ROLE_ADMIN" && (
-                  <span className="nav-link" onClick={() => navigate("/adminDashboard")}>
-      Управление
-    </span>
-              )}
+
             </nav>
             <div className="nav-buttons">
               <button className="logout-btn button"

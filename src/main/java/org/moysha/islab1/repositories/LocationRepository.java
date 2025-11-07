@@ -8,5 +8,9 @@ import java.util.List;
 public interface LocationRepository extends JpaRepository<Location, Long> {
     List<Location> findAll();
     Location findById(long id);
+    boolean existsById(long id);
+
+
+
 
 }
