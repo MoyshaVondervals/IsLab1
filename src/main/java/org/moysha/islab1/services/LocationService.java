@@ -41,5 +41,8 @@ public class LocationService {
 
     }
 
+    public boolean existsById(long id) {
+        return locationRepository.existsById(id);
+    }
 
 }

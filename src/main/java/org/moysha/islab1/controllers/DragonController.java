@@ -5,15 +5,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.CoordinatesDTO;
 import org.moysha.islab1.dto.DragonDTO;
 import org.moysha.islab1.dto.NewDragonResp;
+import org.moysha.islab1.dto.UploadDragonsDTO;
 import org.moysha.islab1.models.Dragon;
 import org.moysha.islab1.services.*;
+import org.moysha.islab1.utils.JsonParser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -32,6 +34,7 @@ public class DragonController {
     private final DragonService dragonService;
 
 
+
     @Operation(
             summary = "Создать дракона",
             description = "Создаёт дракона на основании составного запроса. Отправляет обновлённый список по WebSocket.",
@@ -41,19 +44,13 @@ public class DragonController {
     @ApiResponse(responseCode = "500", description = "Внутренняя ошибка",
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createDragon")
-    public ResponseEntity<String> push(
-            @RequestBody(description = "Данные для создания дракона", required = true,
-                    content = @Content(schema = @Schema(implementation = NewDragonResp.class)))
-            @org.springframework.web.bind.annotation.RequestBody @Valid NewDragonResp request) {
-        System.err.println(request.toString());
-        try {
-            dragonService.createDragon(request);
-            List<Dragon> dragonList = dragonService.getAllDragons();
-            template.convertAndSend("/topic/echo", dragonList);
-            return new ResponseEntity<>(HttpStatus.CREATED);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("server-push failed");
-        }
+    public ResponseEntity<String> createDragon(@RequestBody @Valid NewDragonResp request) {
+        System.out.println(request);
+        ResponseEntity<String> result = dragonService.createDragon(request);
+        List<Dragon> dragonList = dragonService.getAllDragons();
+        template.convertAndSend("/topic/echo", dragonList);
+
+        return result;
     }
 
     @Operation(
@@ -99,10 +96,8 @@ public class DragonController {
     public ResponseEntity<DragonDTO> updateDragon(
             @Parameter(description = "ID дракона", example = "1")
             @PathVariable Long id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Обновлённые данные дракона", required = true,
-                    content = @Content(schema = @Schema(implementation = Dragon.class)))
-            @org.springframework.web.bind.annotation.RequestBody Dragon updatedDragon) {
+
+            @RequestBody Dragon updatedDragon) {
         Dragon result = dragonService.updateDragon(id, updatedDragon);
         DragonDTO dto = dragonService.convertToDTO(result);
         System.err.println(updatedDragon.toString());
@@ -126,4 +121,39 @@ public class DragonController {
         template.convertAndSend("/topic/echo", dragonList);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
+
+
+    @Operation(
+            summary = "uploadDragons",
+            description = "Парсит и валидирует json, псле создает объекты",
+            operationId = "uploadDragons"
+    )
+    @ApiResponse(responseCode = "201", description = "Объекты добавлены",
+    content = @Content(schema = @Schema(implementation = UploadDragonsDTO.class)))
+    @ApiResponse(responseCode = "500", description = "Внутренняя ошибка")
+    @PostMapping(value = "/import/dragons", consumes = "application/json", produces = "text/plain")
+    public ResponseEntity<String> uploadDragons(@RequestBody UploadDragonsDTO dto) throws Exception {
+        System.err.println(dto.getDragonsJson());
+        return dragonService.uploadDragon(dto.getDragonsJson());
+    }
+
+    @Operation(
+            summary = "Удалить всех драконов",
+            description = "Удалить всех драконов",
+            operationId = "deleteAllDragons"
+    )
+    @ApiResponse(responseCode = "201", description = "Удалено",
+            content = @Content(schema = @Schema(implementation = String.class)))
+    @DeleteMapping("/dragonsTotal4k")
+    public ResponseEntity<String> deleteAllDragons() {
+        List<Dragon> dragonList = dragonService.getAllDragons();
+        for (Dragon dragon : dragonList) {
+            dragonService.deleteDragon(dragon.getId());
+        }
+        template.convertAndSend("/topic/echo", dragonList);
+        return new ResponseEntity<>(HttpStatus.CREATED);
+    }
+
+
+
 }

@@ -6,6 +6,7 @@ import { setAuthData } from '../../../redux/authSlice';
 
 import { AuthenticationApi } from '../../../api';
 import { apiConfig } from '../../../apiConfig';
+import axios from "axios";
 
 const authApi = new AuthenticationApi(apiConfig);
 const LoginPage = () => {

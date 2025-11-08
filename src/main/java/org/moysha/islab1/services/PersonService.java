@@ -18,22 +18,41 @@ public class PersonService {
     private final PersonRepository personRepository;
     private final LocationRepository locationRepository;
 
+    public boolean existsById(long id) {
+        return personRepository.existsById(id);
+    }
+
     public List<PersonDTO> getAllPersons() {
         List<Person> persons = personRepository.findAll();
         List<PersonDTO> dto = new ArrayList<>();
         for (Person person : persons) {
-            dto.add(PersonDTO.builder()
-                            .id(person.getId())
-                            .name(person.getName())
-                            .eyeColor(person.getEyeColor())
-                            .hairColor(person.getHairColor())
-                            .location(LocationDTO.builder()
-                                    .x(person.getLocation().getX())
-                                    .y(person.getLocation().getY())
-                                    .z(person.getLocation().getZ()).build())
-                            .passportID(person.getPassportID())
-                            .nationality(person.getNationality())
-                    .build());
+            if (person.getLocation() == null) {
+                System.err.println("NULL");
+                dto.add(PersonDTO.builder()
+                        .id(person.getId())
+                        .name(person.getName())
+                        .eyeColor(person.getEyeColor())
+                        .hairColor(person.getHairColor())
+                        .passportID(person.getPassportID())
+                        .nationality(person.getNationality())
+                        .build());
+            }
+            else {
+                System.err.println("NOT NULL");
+                dto.add(PersonDTO.builder()
+                        .id(person.getId())
+                        .name(person.getName())
+                        .eyeColor(person.getEyeColor())
+                        .hairColor(person.getHairColor())
+                        .location(LocationDTO.builder()
+                                .name(person.getLocation().getName())
+                                .x(person.getLocation().getX())
+                                .y(person.getLocation().getY())
+                                .z(person.getLocation().getZ()).build())
+                        .passportID(person.getPassportID())
+                        .nationality(person.getNationality())
+                        .build());
+            }
         }
         return dto;
     }

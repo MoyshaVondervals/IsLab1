@@ -26,6 +26,7 @@ public class GetElementsController {
     private final PersonService personService;
     private final LocationService locationService;
     private final HeadService headService;
+    private final HistoryService historyService;
 
     @Operation(summary = "Получить пещеры", operationId = "getCaves")
     @ApiResponse(responseCode = "200", description = "OK",
@@ -71,4 +72,13 @@ public class GetElementsController {
         System.err.println("GET HEADS");
         return ResponseEntity.ok(headService.getAllHeads());
     }
+
+    @Operation(summary = "Получить историю импортов", operationId = "getHistory")
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = HistoryDTO.class))))
+    @GetMapping("/getHistory")
+    public ResponseEntity<List<HistoryDTO>> getHistory() {
+        return historyService.getHistory();
+    }
+
 }

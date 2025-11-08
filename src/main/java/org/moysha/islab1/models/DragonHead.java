@@ -17,11 +17,11 @@ public class DragonHead {
     private Long id;
 
     @Positive(message = "Size must be positive")
-    private long size;
+    private Long size;
 
     @Positive(message = "Eyes count must be positive")
-    private int eyesCount;
+    private Integer eyesCount;
 
     @Positive(message = "Tooth count must be positive")
-    private int toothCount;
+    private Integer toothCount;
 }

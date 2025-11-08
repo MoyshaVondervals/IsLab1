@@ -20,7 +20,7 @@ const { Title, Text } = Typography;
 
 const WS_URL =
     (window.location.protocol === "https:" ? "wss://" : "ws://") +
-    "127.0.0.1:8083/ws";
+    "localhost:8054/ws";
 const TOPIC = "/topic/echo";
 
 function normalizeDragon(d) {

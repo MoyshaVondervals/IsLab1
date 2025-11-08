@@ -17,4 +17,5 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
 
 
     boolean existsByLocationId(Long locationId);
+    boolean existsById(long id);
 }

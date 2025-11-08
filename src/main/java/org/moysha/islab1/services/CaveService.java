@@ -17,6 +17,10 @@ import java.util.Optional;
 public class CaveService {
     private final CavesRepository cavesRepository;
 
+    public boolean existsById(long id) {
+        return cavesRepository.existsById(id);
+    }
+
     public List<DragonCaveDTO> getAllCaves() {
         List<DragonCave> caves = cavesRepository.findAll();
         List<DragonCaveDTO> dto = new ArrayList<>();
