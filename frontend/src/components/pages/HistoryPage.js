@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Table, Layout, Typography, InputNumber, Button, Space, message, DatePicker } from "antd";
-import { SearchOutlined, ClearOutlined } from "@ant-design/icons";
-import { useSelector } from "react-redux";
+import React, {useCallback, useEffect, useMemo, useState} from "react";
+import {Button, DatePicker, InputNumber, Layout, message, Space, Table, Typography} from "antd";
+import {ClearOutlined, SearchOutlined} from "@ant-design/icons";
+import {useSelector} from "react-redux";
 import axios from "axios";
 import dayjs from "dayjs";
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
-const { RangePicker } = DatePicker;
+const {Content} = Layout;
+const {Title, Text} = Typography;
+const {RangePicker} = DatePicker;
 
 export default function OperationsPage() {
     const token = useSelector((state) => state.auth.token);
@@ -98,34 +98,43 @@ export default function OperationsPage() {
         });
     }, [rows, filters]);
 
-    const RangeDropdown = ({ valueFrom, valueTo, onChangeFrom, onChangeTo, onApply, onClear, labelFrom = "От", labelTo = "До" }) => (
-        <div style={{ padding: 12, width: 260 }}>
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+    const RangeDropdown = ({
+                               valueFrom,
+                               valueTo,
+                               onChangeFrom,
+                               onChangeTo,
+                               onApply,
+                               onClear,
+                               labelFrom = "От",
+                               labelTo = "До"
+                           }) => (
+        <div style={{padding: 12, width: 260}}>
+            <Space direction="vertical" size={8} style={{width: "100%"}}>
                 <Space>
-                    <span style={{ width: 60 }}>{labelFrom}</span>
+                    <span style={{width: 60}}>{labelFrom}</span>
                     <InputNumber
                         value={valueFrom}
                         onChange={(v) => onChangeFrom(v === null ? undefined : v)}
                         min={0}
                         precision={0}
-                        style={{ width: 160 }}
+                        style={{width: 160}}
                     />
                 </Space>
                 <Space>
-                    <span style={{ width: 60 }}>{labelTo}</span>
+                    <span style={{width: 60}}>{labelTo}</span>
                     <InputNumber
                         value={valueTo}
                         onChange={(v) => onChangeTo(v === null ? undefined : v)}
                         min={0}
                         precision={0}
-                        style={{ width: 160 }}
+                        style={{width: 160}}
                     />
                 </Space>
                 <Space>
-                    <Button type="primary" icon={<SearchOutlined />} onClick={onApply}>
+                    <Button type="primary" icon={<SearchOutlined/>} onClick={onApply}>
                         Применить
                     </Button>
-                    <Button icon={<ClearOutlined />} onClick={onClear}>
+                    <Button icon={<ClearOutlined/>} onClick={onClear}>
                         Сбросить
                     </Button>
                 </Space>
@@ -133,24 +142,24 @@ export default function OperationsPage() {
         </div>
     );
 
-    const OwnerIdDropdown = ({ value, onChange, onApply, onClear }) => (
-        <div style={{ padding: 12, width: 260 }}>
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+    const OwnerIdDropdown = ({value, onChange, onApply, onClear}) => (
+        <div style={{padding: 12, width: 260}}>
+            <Space direction="vertical" size={8} style={{width: "100%"}}>
                 <Space>
-                    <span style={{ width: 120 }}>ID владельца</span>
+                    <span style={{width: 120}}>ID владельца</span>
                     <InputNumber
                         value={value}
                         onChange={(v) => onChange(v === null ? undefined : v)}
                         min={1}
                         precision={0}
-                        style={{ width: 120 }}
+                        style={{width: 120}}
                     />
                 </Space>
                 <Space>
-                    <Button type="primary" icon={<SearchOutlined />} onClick={onApply}>
+                    <Button type="primary" icon={<SearchOutlined/>} onClick={onApply}>
                         Применить
                     </Button>
-                    <Button icon={<ClearOutlined />} onClick={onClear}>
+                    <Button icon={<ClearOutlined/>} onClick={onClear}>
                         Сбросить
                     </Button>
                 </Space>
@@ -158,20 +167,20 @@ export default function OperationsPage() {
         </div>
     );
 
-    const DateDropdown = ({ from, to, onChange, onApply, onClear }) => (
-        <div style={{ padding: 12, width: 320 }}>
-            <Space direction="vertical" size={8} style={{ width: "100%" }}>
+    const DateDropdown = ({from, to, onChange, onApply, onClear}) => (
+        <div style={{padding: 12, width: 320}}>
+            <Space direction="vertical" size={8} style={{width: "100%"}}>
                 <RangePicker
                     showTime
                     value={[from, to]}
                     onChange={(vals) => onChange(vals?.[0] || null, vals?.[1] || null)}
-                    style={{ width: "100%" }}
+                    style={{width: "100%"}}
                 />
                 <Space>
-                    <Button type="primary" icon={<SearchOutlined />} onClick={onApply}>
+                    <Button type="primary" icon={<SearchOutlined/>} onClick={onApply}>
                         Применить
                     </Button>
-                    <Button icon={<ClearOutlined />} onClick={onClear}>
+                    <Button icon={<ClearOutlined/>} onClick={onClear}>
                         Сбросить
                     </Button>
                 </Space>
@@ -186,18 +195,18 @@ export default function OperationsPage() {
             width: 120,
             sorter: (a, b) => a.id - b.id,
             render: (v) => <Text code>#{v}</Text>,
-            filterDropdown: ({ confirm, clearFilters }) => (
+            filterDropdown: ({confirm, clearFilters}) => (
                 <RangeDropdown
                     valueFrom={filters.idFrom}
                     valueTo={filters.idTo}
-                    onChangeFrom={(val) => setFilters((f) => ({ ...f, idFrom: val }))}
-                    onChangeTo={(val) => setFilters((f) => ({ ...f, idTo: val }))}
+                    onChangeFrom={(val) => setFilters((f) => ({...f, idFrom: val}))}
+                    onChangeTo={(val) => setFilters((f) => ({...f, idTo: val}))}
                     onApply={() => {
                         setPage(1);
                         confirm();
                     }}
                     onClear={() => {
-                        setFilters((f) => ({ ...f, idFrom: undefined, idTo: undefined }));
+                        setFilters((f) => ({...f, idFrom: undefined, idTo: undefined}));
                         setPage(1);
                         clearFilters?.();
                     }}
@@ -211,16 +220,16 @@ export default function OperationsPage() {
             dataIndex: ["operationOwner", "id"],
             width: 160,
             render: (_, r) => <Text>{r.operationOwner?.id ?? "—"}</Text>,
-            filterDropdown: ({ confirm, clearFilters }) => (
+            filterDropdown: ({confirm, clearFilters}) => (
                 <OwnerIdDropdown
                     value={filters.ownerId}
-                    onChange={(val) => setFilters((f) => ({ ...f, ownerId: val }))}
+                    onChange={(val) => setFilters((f) => ({...f, ownerId: val}))}
                     onApply={() => {
                         setPage(1);
                         confirm();
                     }}
                     onClear={() => {
-                        setFilters((f) => ({ ...f, ownerId: undefined }));
+                        setFilters((f) => ({...f, ownerId: undefined}));
                         setPage(1);
                         clearFilters?.();
                     }}
@@ -235,18 +244,18 @@ export default function OperationsPage() {
             width: 220,
             sorter: (a, b) => a.affectedObjects - b.affectedObjects,
             render: (v) => <Text strong>{v}</Text>,
-            filterDropdown: ({ confirm, clearFilters }) => (
+            filterDropdown: ({confirm, clearFilters}) => (
                 <RangeDropdown
                     valueFrom={filters.affectedFrom}
                     valueTo={filters.affectedTo}
-                    onChangeFrom={(val) => setFilters((f) => ({ ...f, affectedFrom: val }))}
-                    onChangeTo={(val) => setFilters((f) => ({ ...f, affectedTo: val }))}
+                    onChangeFrom={(val) => setFilters((f) => ({...f, affectedFrom: val}))}
+                    onChangeTo={(val) => setFilters((f) => ({...f, affectedTo: val}))}
                     onApply={() => {
                         setPage(1);
                         confirm();
                     }}
                     onClear={() => {
-                        setFilters((f) => ({ ...f, affectedFrom: undefined, affectedTo: undefined }));
+                        setFilters((f) => ({...f, affectedFrom: undefined, affectedTo: undefined}));
                         setPage(1);
                         clearFilters?.();
                     }}
@@ -273,17 +282,17 @@ export default function OperationsPage() {
                     <Text type="secondary">—</Text>
                 );
             },
-            filterDropdown: ({ confirm, clearFilters }) => (
+            filterDropdown: ({confirm, clearFilters}) => (
                 <DateDropdown
                     from={filters.dateFrom}
                     to={filters.dateTo}
-                    onChange={(from, to) => setFilters((f) => ({ ...f, dateFrom: from, dateTo: to }))}
+                    onChange={(from, to) => setFilters((f) => ({...f, dateFrom: from, dateTo: to}))}
                     onApply={() => {
                         setPage(1);
                         confirm();
                     }}
                     onClear={() => {
-                        setFilters((f) => ({ ...f, dateFrom: null, dateTo: null }));
+                        setFilters((f) => ({...f, dateFrom: null, dateTo: null}));
                         setPage(1);
                         clearFilters?.();
                     }}
@@ -305,13 +314,13 @@ export default function OperationsPage() {
     }, [filteredRows, page, pageSize]);
 
     return (
-        <Layout style={{ background: "#fff" }}>
-            <Content style={{ padding: 24 }}>
-                <Title level={4} style={{ marginBottom: 16 }}>
+        <Layout style={{background: "#fff"}}>
+            <Content style={{padding: 24}}>
+                <Title level={4} style={{marginBottom: 16}}>
                     История операций
                 </Title>
 
-                <Space style={{ marginBottom: 16 }}>
+                <Space style={{marginBottom: 16}}>
                     <Button type="primary" onClick={fetchHistory} loading={loading}>
                         Обновить
                     </Button>

@@ -1,21 +1,20 @@
 package org.moysha.islab1.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.media.*;
-
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.moysha.islab1.dto.CoordinatesDTO;
 import org.moysha.islab1.dto.DragonDTO;
 import org.moysha.islab1.dto.NewDragonResp;
 import org.moysha.islab1.dto.UploadDragonsDTO;
 import org.moysha.islab1.models.Dragon;
-import org.moysha.islab1.services.*;
-import org.moysha.islab1.utils.JsonParser;
+import org.moysha.islab1.services.DragonService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -32,7 +31,6 @@ public class DragonController {
 
     private final SimpMessagingTemplate template;
     private final DragonService dragonService;
-
 
 
     @Operation(
@@ -129,7 +127,7 @@ public class DragonController {
             operationId = "uploadDragons"
     )
     @ApiResponse(responseCode = "201", description = "Объекты добавлены",
-    content = @Content(schema = @Schema(implementation = UploadDragonsDTO.class)))
+            content = @Content(schema = @Schema(implementation = UploadDragonsDTO.class)))
     @ApiResponse(responseCode = "500", description = "Внутренняя ошибка")
     @PostMapping(value = "/import/dragons", consumes = "application/json", produces = "text/plain")
     public ResponseEntity<String> uploadDragons(@RequestBody UploadDragonsDTO dto) throws Exception {
@@ -153,7 +151,6 @@ public class DragonController {
         template.convertAndSend("/topic/echo", dragonList);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
-
 
 
 }

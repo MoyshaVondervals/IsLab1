@@ -9,7 +9,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,7 +26,7 @@ public class OperationHistory {
 
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, optional = false)
     @JoinColumn(name = "operation_owner", nullable = false,
-    foreignKey = @ForeignKey(name = "fk_owner"))
+            foreignKey = @ForeignKey(name = "fk_owner"))
     @NotNull(message = "Owner cannot be null")
     private User operationOwner;
 
@@ -37,8 +36,6 @@ public class OperationHistory {
     @Column(updatable = false, nullable = false)
     @CreationTimestamp
     private LocalDateTime creationDate;
-
-
 
 
 }

@@ -11,7 +11,7 @@ description = "IsLab1"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(19)
     }
 
 }
@@ -57,8 +57,8 @@ dependencies {
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
 
-    implementation("org.flywaydb:flyway-core")
-    implementation("org.flywaydb:flyway-database-postgresql")
+//    implementation("org.flywaydb:flyway-core")
+//    implementation("org.flywaydb:flyway-database-postgresql")
 }
 
 

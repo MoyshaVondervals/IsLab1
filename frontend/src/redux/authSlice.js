@@ -1,4 +1,4 @@
-import { createSlice } from "@reduxjs/toolkit";
+import {createSlice} from "@reduxjs/toolkit";
 
 const isBrowser = typeof window !== "undefined";
 
@@ -13,7 +13,7 @@ const authSlice = createSlice({
     initialState,
     reducers: {
         setAuthData: (state, action) => {
-            const { token, username, role } = action.payload;
+            const {token, username, role} = action.payload;
             state.token = token;
             state.username = username;
             state.role = role;
@@ -38,5 +38,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { setAuthData, clearAuthData, updateRole } = authSlice.actions;
+export const {setAuthData, clearAuthData, updateRole} = authSlice.actions;
 export default authSlice.reducer;

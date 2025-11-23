@@ -9,13 +9,15 @@ import java.util.List;
 
 public interface PersonRepository extends JpaRepository<Person, Long> {
     List<Person> findAll();
+
     Person findById(long id);
 
     @Query("SELECT COUNT(p) > 0 FROM Person p where p.location.id = :locId And p.id != :excludePersonId")
-    boolean existByLocationIdAndIdNot(@Param("locId")long locationId,
+    boolean existByLocationIdAndIdNot(@Param("locId") long locationId,
                                       @Param("excludePersonId") long id);
 
 
     boolean existsByLocationId(Long locationId);
+
     boolean existsById(long id);
 }

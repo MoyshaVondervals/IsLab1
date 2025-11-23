@@ -17,7 +17,7 @@ public class HeadService {
 
     public void existingHead(DragonHead head) {
         System.err.println("INVOkED");
-        if (headRepository.existingHead(head.getSize(), head.getEyesCount(), head.getToothCount())){
+        if (headRepository.existingHead(head.getSize(), head.getEyesCount(), head.getToothCount())) {
             throw new MessageException("Голова не уникальна, этого не может быть!");
         }
     }
@@ -33,9 +33,9 @@ public class HeadService {
         for (DragonHead head : heads) {
             dto.add(DragonHeadDTO.builder()
                     .id(head.getId())
-                            .eyesCount(head.getEyesCount())
-                            .size(head.getSize())
-                            .toothCount(head.getToothCount())
+                    .eyesCount(head.getEyesCount())
+                    .size(head.getSize())
+                    .toothCount(head.getToothCount())
                     .build());
         }
         return dto;

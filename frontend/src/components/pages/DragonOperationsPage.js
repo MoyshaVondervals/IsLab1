@@ -1,23 +1,14 @@
 // src/pages/DragonOperationsPage.js
-import React, { useEffect, useState, useRef } from 'react';
-import {
-    Card,
-    Typography,
-    Button,
-    Space,
-    Select,
-    InputNumber,
-    Table,
-    Alert
-} from 'antd';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, InputNumber, Select, Space, Table, Typography} from 'antd';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
-import { GetApi, CreateApi, SpecialApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
+import {CreateApi, GetApi, SpecialApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-const { Title } = Typography;
-const { Option } = Select;
+const {Title} = Typography;
+const {Option} = Select;
 
 const getApi = new GetApi(apiConfig);
 const specialApi = new SpecialApi(apiConfig);
@@ -49,7 +40,7 @@ const DragonOperationsPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -99,8 +90,8 @@ const DragonOperationsPage = () => {
 
     const loadPersons = async () => {
         try {
-            const { data } = await getApi.getPersons({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data} = await getApi.getPersons({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setPersons(data || []);
             notify('success', 'Список убийц загружен');
@@ -125,17 +116,17 @@ const DragonOperationsPage = () => {
         try {
             switch (selectedOp) {
                 case 'avgAge': {
-                    const { data } = await specialApi.getAvgAge({
-                        headers: { Authorization: `Bearer ${token}` }
+                    const {data} = await specialApi.getAvgAge({
+                        headers: {Authorization: `Bearer ${token}`}
                     });
-                    setResult({ avgAge: data });
+                    setResult({avgAge: data});
                     notify('success', 'Расчёт среднего возраста выполнен');
                     break;
                 }
 
                 case 'maxCave': {
-                    const { data } = await specialApi.getDragonWithMaxCave({
-                        headers: { Authorization: `Bearer ${token}` }
+                    const {data} = await specialApi.getDragonWithMaxCave({
+                        headers: {Authorization: `Bearer ${token}`}
                     });
                     setResult(data);
                     notify('success', 'Получен дракон с максимальным числом сокровищ');
@@ -147,8 +138,8 @@ const DragonOperationsPage = () => {
                         notify('error', 'Укажите N для размера головы');
                         return;
                     }
-                    const { data } = await specialApi.getDragonHeadGreater(Number(param), {
-                        headers: { Authorization: `Bearer ${token}` }
+                    const {data} = await specialApi.getDragonHeadGreater(Number(param), {
+                        headers: {Authorization: `Bearer ${token}`}
                     });
                     setResult(toArray(data));
                     notify('success', `Найдены драконы с размером головы > ${param}`);
@@ -156,8 +147,8 @@ const DragonOperationsPage = () => {
                 }
 
                 case 'oldestDragon': {
-                    const { data } = await specialApi.getOldestDragon({
-                        headers: { Authorization: `Bearer ${token}` }
+                    const {data} = await specialApi.getOldestDragon({
+                        headers: {Authorization: `Bearer ${token}`}
                     });
                     setResult(Array.isArray(data) ? data[0] : data);
                     notify('success', 'Получен самый старый дракон');
@@ -174,7 +165,7 @@ const DragonOperationsPage = () => {
                         return;
                     }
 
-                    const body = { dragonId: Number(param), killerId: Number(killerId) };
+                    const body = {dragonId: Number(param), killerId: Number(killerId)};
                     await specialApi.killDragon(body, {
                         headers: {
                             'Content-Type': 'application/json',
@@ -182,7 +173,7 @@ const DragonOperationsPage = () => {
                         }
                     });
 
-                    setResult({ killedId: Number(param), killerId: Number(killerId) });
+                    setResult({killedId: Number(param), killerId: Number(killerId)});
                     notify('success', `Дракон #${param} убит (убийца Person #${killerId})`);
                     break;
                 }
@@ -199,12 +190,12 @@ const DragonOperationsPage = () => {
 
     // колонки для отображения дракона
     const dragonColumns = [
-        { title: 'ID', dataIndex: 'id', key: 'id' },
-        { title: 'Имя', dataIndex: 'name', key: 'name' },
-        { title: 'Возраст', dataIndex: 'age', key: 'age' },
-        { title: 'Описание', dataIndex: 'description', key: 'description' },
-        { title: 'Тип', dataIndex: 'type', key: 'type' },
-        { title: 'Размах крыльев', dataIndex: 'wingspan', key: 'wingspan' },
+        {title: 'ID', dataIndex: 'id', key: 'id'},
+        {title: 'Имя', dataIndex: 'name', key: 'name'},
+        {title: 'Возраст', dataIndex: 'age', key: 'age'},
+        {title: 'Описание', dataIndex: 'description', key: 'description'},
+        {title: 'Тип', dataIndex: 'type', key: 'type'},
+        {title: 'Размах крыльев', dataIndex: 'wingspan', key: 'wingspan'},
         {
             title: 'Координаты',
             key: 'coordinates',
@@ -250,7 +241,7 @@ const DragonOperationsPage = () => {
 
         if (selectedOp === 'avgAge') {
             return (
-                <Card style={{ marginTop: 16 }}>
+                <Card style={{marginTop: 16}}>
                     Средний возраст драконов: <b>{result.avgAge}</b>
                 </Card>
             );
@@ -259,7 +250,7 @@ const DragonOperationsPage = () => {
         if (selectedOp === 'maxCave' || selectedOp === 'oldestDragon') {
             return (
                 <Table
-                    style={{ marginTop: 16 }}
+                    style={{marginTop: 16}}
                     rowKey="id"
                     dataSource={toArray(result)}
                     columns={dragonColumns}
@@ -271,18 +262,18 @@ const DragonOperationsPage = () => {
         if (selectedOp === 'headGreater') {
             return (
                 <Table
-                    style={{ marginTop: 16 }}
+                    style={{marginTop: 16}}
                     rowKey="id"
                     dataSource={result}
                     columns={dragonColumns}
-                    pagination={{ pageSize: 5 }}
+                    pagination={{pageSize: 5}}
                 />
             );
         }
 
         if (selectedOp === 'killDragon') {
             return (
-                <Card style={{ marginTop: 16 }}>
+                <Card style={{marginTop: 16}}>
                     Дракон #{result.killedId} убит убийцей Person #{result.killerId}
                 </Card>
             );
@@ -292,17 +283,17 @@ const DragonOperationsPage = () => {
     };
 
     return (
-        <div style={{ padding: '20px' }}>
-            <Space style={{ marginBottom: 20 }}>
+        <div style={{padding: '20px'}}>
+            <Space style={{marginBottom: 20}}>
                 <Button onClick={() => navigate('/refs')}>Назад</Button>
             </Space>
 
             <Title level={3}>Операции над драконами</Title>
 
-            <Card style={{ marginBottom: 20 }}>
+            <Card style={{marginBottom: 20}}>
                 <Space wrap>
                     <Select
-                        style={{ width: 500 }}
+                        style={{width: 500}}
                         placeholder="Выберите операцию"
                         value={selectedOp}
                         onChange={(val) => {
@@ -336,7 +327,7 @@ const DragonOperationsPage = () => {
                                 onChange={setParam}
                             />
                             <Select
-                                style={{ width: 280 }}
+                                style={{width: 280}}
                                 placeholder="Выберите убийцу"
                                 value={killerId}
                                 onChange={setKillerId}
@@ -369,10 +360,10 @@ const DragonOperationsPage = () => {
             {renderResult()}
 
             {/* Панель уведомлений внизу страницы */}
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

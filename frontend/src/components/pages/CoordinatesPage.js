@@ -1,25 +1,13 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Typography} from 'antd';
+import {PlusOutlined, ReloadOutlined, SearchOutlined} from '@ant-design/icons';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
-import React, { useState, useEffect, useRef } from 'react';
-import {
-    Table,
-    Button,
-    Space,
-    Modal,
-    Form,
-    InputNumber,
-    Input,
-    Typography,
-    Card,
-    Alert
-} from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import {CreateApi, DeleteApi, GetApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-import { GetApi, CreateApi, DeleteApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
-
-const { Title } = Typography;
+const {Title} = Typography;
 
 const getApi = new GetApi(apiConfig);
 const createApi = new CreateApi(apiConfig);
@@ -34,7 +22,7 @@ const CoordinatesPage = () => {
     const [modalVisible, setModalVisible] = useState(false);
     const [form] = Form.useForm();
     const [saveLoading, setSaveLoading] = useState(false);
-    const [searchFilters, setSearchFilters] = useState({ id: '', x: '', y: '' });
+    const [searchFilters, setSearchFilters] = useState({id: '', x: '', y: ''});
 
 
     const [notices, setNotices] = useState([]);
@@ -50,7 +38,7 @@ const CoordinatesPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -66,7 +54,7 @@ const CoordinatesPage = () => {
 
 
     const handleSearchChange = (key, value) => {
-        setSearchFilters((prev) => ({ ...prev, [key]: value }));
+        setSearchFilters((prev) => ({...prev, [key]: value}));
     };
 
     const filteredData = data.filter((item) => {
@@ -85,10 +73,10 @@ const CoordinatesPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 4 }}
+                        style={{marginTop: 4}}
                         value={searchFilters.id}
                         onChange={(e) => handleSearchChange('id', e.target.value)}
-                        prefix={<SearchOutlined />}
+                        prefix={<SearchOutlined/>}
                     />
                 </div>
             ),
@@ -103,10 +91,10 @@ const CoordinatesPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 4 }}
+                        style={{marginTop: 4}}
                         value={searchFilters.x}
                         onChange={(e) => handleSearchChange('x', e.target.value)}
-                        prefix={<SearchOutlined />}
+                        prefix={<SearchOutlined/>}
                     />
                 </div>
             ),
@@ -121,10 +109,10 @@ const CoordinatesPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 4 }}
+                        style={{marginTop: 4}}
                         value={searchFilters.y}
                         onChange={(e) => handleSearchChange('y', e.target.value)}
-                        prefix={<SearchOutlined />}
+                        prefix={<SearchOutlined/>}
                     />
                 </div>
             ),
@@ -149,8 +137,8 @@ const CoordinatesPage = () => {
     const loadCoordinates = async () => {
         setLoading(true);
         try {
-            const { data: coords } = await getApi.getCoordinates({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data: coords} = await getApi.getCoordinates({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setData(coords || []);
         } catch (_error) {
@@ -208,7 +196,7 @@ const CoordinatesPage = () => {
     };
 
     const resetFilters = () => {
-        setSearchFilters({ id: '', x: '', y: '' });
+        setSearchFilters({id: '', x: '', y: ''});
         notify('info', 'Фильтры сброшены');
     };
 
@@ -217,15 +205,15 @@ const CoordinatesPage = () => {
     }, [token]);
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{padding: '20px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
                 <Title level={3}>Управление координатами</Title>
                 <Space>
                     <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
-                    <Button icon={<ReloadOutlined />} onClick={resetFilters}>
+                    <Button icon={<ReloadOutlined/>} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                    <Button type="primary" icon={<PlusOutlined/>} onClick={() => setModalVisible(true)}>
                         Добавить
                     </Button>
                 </Space>
@@ -237,7 +225,7 @@ const CoordinatesPage = () => {
                     dataSource={filteredData}
                     loading={loading}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
+                    pagination={{pageSize: 10}}
                 />
             </Card>
 
@@ -254,20 +242,20 @@ const CoordinatesPage = () => {
                 confirmLoading={saveLoading}
             >
                 <Form form={form} layout="vertical" onFinish={handleSave}>
-                    <Form.Item name="x" label="Координата X" rules={[{ required: true, message: 'Введите X' }]}>
-                        <InputNumber style={{ width: '100%' }} step={0.000001} />
+                    <Form.Item name="x" label="Координата X" rules={[{required: true, message: 'Введите X'}]}>
+                        <InputNumber style={{width: '100%'}} step={0.000001}/>
                     </Form.Item>
-                    <Form.Item name="y" label="Координата Y" rules={[{ required: true, message: 'Введите Y' }]}>
-                        <InputNumber style={{ width: '100%' }} step={0.000001} />
+                    <Form.Item name="y" label="Координата Y" rules={[{required: true, message: 'Введите Y'}]}>
+                        <InputNumber style={{width: '100%'}} step={0.000001}/>
                     </Form.Item>
                 </Form>
             </Modal>
 
             {/* Панель уведомлений внизу страницы */}
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

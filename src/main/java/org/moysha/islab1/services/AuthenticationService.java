@@ -2,7 +2,6 @@ package org.moysha.islab1.services;
 
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.AuthRespForm;
-import org.moysha.islab1.dto.JwtAuthenticationResponse;
 import org.moysha.islab1.dto.SignInRequest;
 import org.moysha.islab1.dto.SignUpRequest;
 import org.moysha.islab1.models.User;
@@ -11,7 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -37,8 +35,6 @@ public class AuthenticationService {
         return new ResponseEntity<>(new AuthRespForm(jwt, request.getUsername(), Role.USER), HttpStatus.OK);
 
     }
-
-
 
 
     public ResponseEntity<AuthRespForm> signIn(SignInRequest request) {

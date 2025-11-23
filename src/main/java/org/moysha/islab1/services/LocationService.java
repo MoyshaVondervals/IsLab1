@@ -1,6 +1,5 @@
 package org.moysha.islab1.services;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.LocationDTO;
 import org.moysha.islab1.models.Location;
@@ -20,7 +19,7 @@ public class LocationService {
         List<LocationDTO> dto = new ArrayList<>();
         for (Location location : locations) {
             dto.add(LocationDTO.builder()
-                            .id(location.getId())
+                    .id(location.getId())
                     .x(location.getX())
                     .y(location.getY())
                     .z(location.getZ()).build());

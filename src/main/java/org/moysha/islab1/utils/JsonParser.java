@@ -2,7 +2,6 @@ package org.moysha.islab1.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
-import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.NewDragonResp;
 import org.moysha.islab1.exceptions.MessageException;
@@ -34,13 +33,12 @@ public class JsonParser {
 
     public List<@Valid NewDragonResp> parseJson(String json) throws Exception {
 
-            List<NewDragonResp> dragonList = objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, NewDragonResp.class));
-            for (NewDragonResp dragon: dragonList){
-                System.out.println(dragon.toString());
-            }
-            return dragonList;
+        List<NewDragonResp> dragonList = objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, NewDragonResp.class));
+        for (NewDragonResp dragon : dragonList) {
+            System.out.println(dragon.toString());
+        }
+        return dragonList;
     }
-
 
 
     public Coordinates resolveCoordinates(Coordinates req) {
@@ -93,11 +91,13 @@ public class JsonParser {
         List<String> errors = new ArrayList<>();
         if (req.getSize() == null || req.getSize() <= 0) errors.add("DragonHead.size должен быть > 0");
         if (req.getEyesCount() == null || req.getEyesCount() <= 0) errors.add("DragonHead.eyesCount должен быть > 0");
-        if (req.getToothCount() == null || req.getToothCount() <= 0) errors.add("DragonHead.toothCount должен быть > 0");
+        if (req.getToothCount() == null || req.getToothCount() <= 0)
+            errors.add("DragonHead.toothCount должен быть > 0");
         if (!errors.isEmpty()) throw new MessageException(String.join("; ", errors));
 
         return new DragonHead(null, req.getSize(), req.getEyesCount(), req.getToothCount());
     }
+
     public Person resolvePerson(Person req) {
         if (req == null) return null; // killer может быть null
         if (req.getId() != null) {
@@ -108,7 +108,8 @@ public class JsonParser {
         List<String> errors = new ArrayList<>();
         if (req.getName() == null || req.getName().isBlank()) errors.add("Person.name не может быть пустым");
         if (req.getEyeColor() == null) errors.add("Person.eyeColor не может быть null");
-        if (req.getPassportID() == null || req.getPassportID().isBlank()) errors.add("Person.passportID не может быть пустым");
+        if (req.getPassportID() == null || req.getPassportID().isBlank())
+            errors.add("Person.passportID не может быть пустым");
         if (req.getNationality() == null) errors.add("Person.nationality не может быть null");
         if (!errors.isEmpty()) throw new MessageException(String.join("; ", errors));
 
@@ -125,12 +126,6 @@ public class JsonParser {
         p.setNationality(req.getNationality());
         return p;
     }
-
-
-
-
-
-
 
 
 }

@@ -1,6 +1,7 @@
 package org.moysha.islab1.dto;
 
-import jakarta.persistence.*;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -8,10 +9,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.moysha.islab1.models.Coordinates;
-import org.moysha.islab1.models.DragonCave;
-import org.moysha.islab1.models.DragonHead;
-import org.moysha.islab1.models.Person;
 import org.moysha.islab1.unums.DragonType;
 
 import java.time.LocalDateTime;

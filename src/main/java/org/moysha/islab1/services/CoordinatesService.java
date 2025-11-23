@@ -21,14 +21,12 @@ public class CoordinatesService {
     }
 
 
-
-
     public List<CoordinatesDTO> getAllCoordinates() {
         List<Coordinates> coordinates = coordinatesRepository.findAll();
         List<CoordinatesDTO> dto = new ArrayList<>();
         for (Coordinates c : coordinates) {
             dto.add(CoordinatesDTO.builder()
-                            .id(c.getId())
+                    .id(c.getId())
                     .x(c.getX())
                     .y(c.getY())
                     .build());
@@ -40,8 +38,8 @@ public class CoordinatesService {
         float x = coordinates.getX();
         double y = coordinates.getY();
 
-        float  minX = x - 10.0f;
-        float  maxX = x + 10.0f;
+        float minX = x - 10.0f;
+        float maxX = x + 10.0f;
         double minY = y - 10.0;
         double maxY = y + 10.0;
 
@@ -53,14 +51,12 @@ public class CoordinatesService {
     public Coordinates getCoordinatesById(long id) {
         return coordinatesRepository.findById(id);
     }
+
     public Coordinates save(Coordinates coordinates) {
         System.err.println(coordinates);
         checkNearCoordinates(coordinates);
         return coordinatesRepository.save(coordinates);
     }
-
-
-
 
 
 }

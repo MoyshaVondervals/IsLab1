@@ -2,7 +2,6 @@ package org.moysha.islab1.exceptions.handlers;
 
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,7 +11,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class ConstraintExceptionHandler {
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<?> handleValidationExceptions(ConstraintViolationException ex){
+    public ResponseEntity<?> handleValidationExceptions(ConstraintViolationException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getMessage();
         errors.put("data", ex.getMessage());

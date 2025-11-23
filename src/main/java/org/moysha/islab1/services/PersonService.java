@@ -2,7 +2,6 @@ package org.moysha.islab1.services;
 
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.LocationDTO;
-import org.moysha.islab1.dto.LocationRefDTO;
 import org.moysha.islab1.dto.PersonDTO;
 import org.moysha.islab1.models.Person;
 import org.moysha.islab1.repositories.LocationRepository;
@@ -36,8 +35,7 @@ public class PersonService {
                         .passportID(person.getPassportID())
                         .nationality(person.getNationality())
                         .build());
-            }
-            else {
+            } else {
                 System.err.println("NOT NULL");
                 dto.add(PersonDTO.builder()
                         .id(person.getId())

@@ -1,15 +1,14 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Typography} from 'antd';
+import {PlusOutlined, ReloadOutlined} from '@ant-design/icons';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, Typography, Card, Tag, Alert } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import {CreateApi, DeleteApi, GetApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-import { GetApi, CreateApi, DeleteApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+const {Title, Text} = Typography;
+const {Option} = Select;
 
 const COLOR_ENUM = ['RED', 'BLACK', 'YELLOW', 'WHITE', 'BROWN'];
 const COUNTRY_ENUM = ['FRANCE', 'SPAIN', 'VATICAN', 'ITALY', 'NORTH_KOREA'];
@@ -44,7 +43,7 @@ const PersonsPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -59,7 +58,6 @@ const PersonsPage = () => {
     }, []);
 
 
-
     const [filters, setFilters] = useState({
         id: '',
         name: '',
@@ -71,7 +69,7 @@ const PersonsPage = () => {
     });
 
     const handleFilterChange = (key, value) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({...prev, [key]: value}));
     };
 
     const resetFilters = () => {
@@ -115,7 +113,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.id}
                         onChange={(e) => handleFilterChange('id', e.target.value)}
                     />
@@ -132,7 +130,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.name}
                         onChange={(e) => handleFilterChange('name', e.target.value)}
                     />
@@ -148,7 +146,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.eyeColor}
                         onChange={(e) => handleFilterChange('eyeColor', e.target.value)}
                     />
@@ -165,7 +163,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.hairColor}
                         onChange={(e) => handleFilterChange('hairColor', e.target.value)}
                     />
@@ -182,7 +180,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.passportID}
                         onChange={(e) => handleFilterChange('passportID', e.target.value)}
                     />
@@ -198,7 +196,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.nationality}
                         onChange={(e) => handleFilterChange('nationality', e.target.value)}
                     />
@@ -215,7 +213,7 @@ const PersonsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.location}
                         onChange={(e) => handleFilterChange('location', e.target.value)}
                     />
@@ -245,8 +243,8 @@ const PersonsPage = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const { data: persons } = await getApi.getPersons({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data: persons} = await getApi.getPersons({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setData(persons ?? []);
         } catch (_error) {
@@ -259,8 +257,8 @@ const PersonsPage = () => {
     const loadLocations = async () => {
         setLoadingLocations(true);
         try {
-            const { data: locs } = await getApi.getLocations({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data: locs} = await getApi.getLocations({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setLocations(locs ?? []);
         } catch (_error) {
@@ -283,7 +281,7 @@ const PersonsPage = () => {
                 hairColor: values.hairColor || null,
                 passportID: values.passportID,
                 nationality: values.nationality,
-                location: locationId ? { id: locationId } : null
+                location: locationId ? {id: locationId} : null
             };
 
             await createApi.createPerson(payload, {
@@ -328,15 +326,15 @@ const PersonsPage = () => {
     }, [token]);
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{padding: '20px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
                 <Title level={3}>Управление персонажами</Title>
                 <Space>
                     <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
-                    <Button icon={<ReloadOutlined />} onClick={resetFilters}>
+                    <Button icon={<ReloadOutlined/>} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                    <Button type="primary" icon={<PlusOutlined/>} onClick={() => setModalVisible(true)}>
                         Добавить персонажа
                     </Button>
                 </Space>
@@ -348,8 +346,8 @@ const PersonsPage = () => {
                     dataSource={filteredData}
                     loading={loading}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 1000 }}
+                    pagination={{pageSize: 10}}
+                    scroll={{x: 1000}}
                 />
             </Card>
 
@@ -367,11 +365,12 @@ const PersonsPage = () => {
                 confirmLoading={saveLoading}
             >
                 <Form form={form} layout="vertical" onFinish={handleSave}>
-                    <Form.Item name="name" label="Имя" rules={[{ required: true, message: 'Введите имя' }]}>
-                        <Input placeholder="Имя персонажа" />
+                    <Form.Item name="name" label="Имя" rules={[{required: true, message: 'Введите имя'}]}>
+                        <Input placeholder="Имя персонажа"/>
                     </Form.Item>
 
-                    <Form.Item name="eyeColor" label="Цвет глаз" rules={[{ required: true, message: 'Выберите цвет глаз' }]}>
+                    <Form.Item name="eyeColor" label="Цвет глаз"
+                               rules={[{required: true, message: 'Выберите цвет глаз'}]}>
                         <Select placeholder="Выберите цвет глаз">
                             {COLOR_ENUM.map((color) => (
                                 <Option key={color} value={color}>
@@ -391,14 +390,15 @@ const PersonsPage = () => {
                         </Select>
                     </Form.Item>
 
-                    <Form.Item name="passportID" label="Паспорт ID" rules={[{ required: true, message: 'Введите паспорт ID' }]}>
-                        <Input placeholder="Номер паспорта" />
+                    <Form.Item name="passportID" label="Паспорт ID"
+                               rules={[{required: true, message: 'Введите паспорт ID'}]}>
+                        <Input placeholder="Номер паспорта"/>
                     </Form.Item>
 
                     <Form.Item
                         name="nationality"
                         label="Национальность"
-                        rules={[{ required: true, message: 'Выберите национальность' }]}
+                        rules={[{required: true, message: 'Выберите национальность'}]}
                     >
                         <Select placeholder="Выберите национальность">
                             {COUNTRY_ENUM.map((country) => (
@@ -422,10 +422,10 @@ const PersonsPage = () => {
             </Modal>
 
             {/* Панель уведомлений внизу */}
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

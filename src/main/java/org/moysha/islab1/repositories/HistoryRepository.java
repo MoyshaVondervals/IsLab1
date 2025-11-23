@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface HistoryRepository extends JpaRepository<OperationHistory, Long> {
     List<OperationHistory> findAll();
+
     List<OperationHistory> findAllByOperationOwner_Id(long userId);
 }

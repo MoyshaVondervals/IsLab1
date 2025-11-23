@@ -1,13 +1,12 @@
-import { Button, Form, Input, message, Popconfirm, Space, Table, Tag, Typography } from "antd";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CheckOutlined, CloseOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
-import { Client } from "@stomp/stompjs";
-import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import {Button, Input, message, Space, Table, Tag, Typography} from "antd";
+import React, {useEffect, useMemo, useRef, useState} from "react";
+import {CheckOutlined, CloseOutlined, ReloadOutlined, SearchOutlined} from "@ant-design/icons";
+import {Client} from "@stomp/stompjs";
+import {useSelector} from "react-redux";
+import {useNavigate} from "react-router-dom";
 
-import { DragonApi } from "../api";
-import { apiConfig } from "../apiConfig";
-
+import {DragonApi} from "../api";
+import {apiConfig} from "../apiConfig";
 
 
 const getApi = new DragonApi(apiConfig);
@@ -15,12 +14,12 @@ const getApi = new DragonApi(apiConfig);
 const DRAGON_TYPES = ["WATER", "UNDERGROUND", "AIR", "FIRE"];
 const COLOR_ENUM = ["RED", "BLACK", "YELLOW", "WHITE", "BROWN"];
 const COUNTRY_ENUM = ["FRANCE", "SPAIN", "VATICAN", "ITALY", "NORTH_KOREA"];
-const { Title, Text } = Typography;
+const {Title, Text} = Typography;
 
 
 const WS_URL =
     (window.location.protocol === "https:" ? "wss://" : "ws://") +
-    "localhost:8054/ws";
+    "localhost:8080/ws";
 const TOPIC = "/topic/echo";
 
 function normalizeDragon(d) {
@@ -163,7 +162,8 @@ const DragonTable = () => {
         if (clientRef.current) {
             try {
                 clientRef.current.deactivate();
-            } catch (e) {}
+            } catch (e) {
+            }
             clientRef.current = null;
             subRef.current = null;
         }
@@ -173,7 +173,7 @@ const DragonTable = () => {
             reconnectDelay: 3000,
             heartbeatIncoming: 10000,
             heartbeatOutgoing: 10000,
-            connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+            connectHeaders: token ? {Authorization: `Bearer ${token}`} : {},
             onConnect: () => {
                 setConnected(true);
                 setConnecting(false);
@@ -182,7 +182,8 @@ const DragonTable = () => {
                     if (subRef.current) {
                         try {
                             subRef.current.unsubscribe();
-                        } catch (_) {}
+                        } catch (_) {
+                        }
                         subRef.current = null;
                     }
 
@@ -205,7 +206,8 @@ const DragonTable = () => {
             onWebSocketError: () => {
                 message.error("Ошибка WebSocket соединения");
             },
-            debug: () => {},
+            debug: () => {
+            },
         });
 
         client.activate();
@@ -217,13 +219,15 @@ const DragonTable = () => {
             if (subRef.current) {
                 try {
                     subRef.current.unsubscribe();
-                } catch (_) {}
+                } catch (_) {
+                }
                 subRef.current = null;
             }
             if (clientRef.current) {
                 try {
                     clientRef.current.deactivate();
-                } catch (_) {}
+                } catch (_) {
+                }
                 clientRef.current = null;
             }
         } finally {
@@ -240,7 +244,7 @@ const DragonTable = () => {
     }, [token]);
 
     const numberSearchDropdown = (ref, placeholder = "Точное значение") => ({
-        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
+        filterDropdown: ({setSelectedKeys, selectedKeys, confirm, clearFilters, close}) => (
             <div className="dragons-filter-dropdown" onKeyDown={(e) => e.stopPropagation()}>
                 <Input
                     ref={ref}
@@ -254,22 +258,22 @@ const DragonTable = () => {
                     allowClear
                     className="dragons-filter-input"
                     inputMode="decimal"
-                    suffix={<SearchOutlined className="dragons-filter-icon" />}
+                    suffix={<SearchOutlined className="dragons-filter-icon"/>}
                 />
                 <div className="dragons-filter-actions">
-                    <Button type="primary" icon={<CheckOutlined />} onClick={() => confirm()}>
+                    <Button type="primary" icon={<CheckOutlined/>} onClick={() => confirm()}>
                         Применить
                     </Button>
                     <Button
-                        icon={<ReloadOutlined />}
+                        icon={<ReloadOutlined/>}
                         onClick={() => {
                             clearFilters?.();
-                            confirm({ closeDropdown: false });
+                            confirm({closeDropdown: false});
                         }}
                     >
                         Сбросить
                     </Button>
-                    <Button icon={<CloseOutlined />} onClick={() => close()}>
+                    <Button icon={<CloseOutlined/>} onClick={() => close()}>
                         Закрыть
                     </Button>
                 </div>
@@ -279,12 +283,12 @@ const DragonTable = () => {
             if (visible) setTimeout(() => ref?.current?.select(), 100);
         },
         filterIcon: (filtered) => (
-            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"} />
+            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"}/>
         ),
     });
 
     const textSearchDropdown = (ref) => ({
-        filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
+        filterDropdown: ({setSelectedKeys, selectedKeys, confirm, clearFilters, close}) => (
             <div className="dragons-filter-dropdown" onKeyDown={(e) => e.stopPropagation()}>
                 <Input
                     ref={ref}
@@ -294,22 +298,22 @@ const DragonTable = () => {
                     onPressEnter={() => confirm()}
                     allowClear
                     className="dragons-filter-input"
-                    suffix={<SearchOutlined className="dragons-filter-icon" />}
+                    suffix={<SearchOutlined className="dragons-filter-icon"/>}
                 />
                 <div className="dragons-filter-actions">
-                    <Button type="primary" icon={<CheckOutlined />} onClick={() => confirm()}>
+                    <Button type="primary" icon={<CheckOutlined/>} onClick={() => confirm()}>
                         Применить
                     </Button>
                     <Button
-                        icon={<ReloadOutlined />}
+                        icon={<ReloadOutlined/>}
                         onClick={() => {
                             clearFilters?.();
-                            confirm({ closeDropdown: false });
+                            confirm({closeDropdown: false});
                         }}
                     >
                         Сбросить
                     </Button>
-                    <Button icon={<CloseOutlined />} onClick={() => close()}>
+                    <Button icon={<CloseOutlined/>} onClick={() => close()}>
                         Закрыть
                     </Button>
                 </div>
@@ -319,7 +323,7 @@ const DragonTable = () => {
             if (visible) setTimeout(() => ref?.current?.select(), 100);
         },
         filterIcon: (filtered) => (
-            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"} />
+            <SearchOutlined className={filtered ? "dragons-filter-icon--active" : "dragons-filter-icon"}/>
         ),
     });
 
@@ -328,7 +332,7 @@ const DragonTable = () => {
             setLoadingTable(true);
 
 
-            const { data: payload } = await getApi.getDragons({
+            const {data: payload} = await getApi.getDragons({
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -422,7 +426,7 @@ const DragonTable = () => {
                 dataIndex: "type",
                 key: "type",
                 width: 140,
-                filters: DRAGON_TYPES.map((t) => ({ text: t, value: t })),
+                filters: DRAGON_TYPES.map((t) => ({text: t, value: t})),
                 onFilter: (val, rec) => rec.type === val,
                 render: (t) => (t ? <Tag color="blue">{t}</Tag> : <Tag>—</Tag>),
             },
@@ -571,7 +575,7 @@ const DragonTable = () => {
                         dataIndex: ["killer", "nationality"],
                         key: "killerNationality",
                         width: 140,
-                        filters: COUNTRY_ENUM.map((c) => ({ text: c, value: c })),
+                        filters: COUNTRY_ENUM.map((c) => ({text: c, value: c})),
                         onFilter: (val, rec) => rec.killer?.nationality === val,
                         render: (v) => (v ? <Tag color="green">{v}</Tag> : "—"),
                     },
@@ -580,7 +584,7 @@ const DragonTable = () => {
                         dataIndex: ["killer", "eyeColor"],
                         key: "killerEyeColor",
                         width: 140,
-                        filters: COLOR_ENUM.map((c) => ({ text: c, value: c })),
+                        filters: COLOR_ENUM.map((c) => ({text: c, value: c})),
                         onFilter: (val, rec) => rec.killer?.eyeColor === val,
                         render: (v) => (v ? <Tag color={v.toLowerCase()}>{v}</Tag> : "—"),
                     },
@@ -589,7 +593,7 @@ const DragonTable = () => {
                         dataIndex: ["killer", "hairColor"],
                         key: "killerHairColor",
                         width: 140,
-                        filters: [...COLOR_ENUM.map((c) => ({ text: c, value: c })), { text: "Не указан", value: "NULL" }],
+                        filters: [...COLOR_ENUM.map((c) => ({text: c, value: c})), {text: "Не указан", value: "NULL"}],
                         onFilter: (val, rec) => {
                             if (val === "NULL") return rec.killer?.hairColor === null || rec.killer?.hairColor === undefined;
                             return rec.killer?.hairColor === val;
@@ -667,9 +671,9 @@ const DragonTable = () => {
                 width: 180,
                 sorter: (a, b) => new Date(a.creationDate ?? 0).getTime() - new Date(b.creationDate ?? 0).getTime(),
                 filters: [
-                    { text: "Сегодня", value: "today" },
-                    { text: "За последнюю неделю", value: "week" },
-                    { text: "За последний месяц", value: "month" },
+                    {text: "Сегодня", value: "today"},
+                    {text: "За последнюю неделю", value: "week"},
+                    {text: "За последний месяц", value: "month"},
                 ],
                 onFilter: (value, record) => {
                     if (!record.creationDate) return false;
@@ -712,12 +716,12 @@ const DragonTable = () => {
 
     return (
         <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{marginBottom: 16}}>
                 <Tag color={connected ? "green" : connecting ? "gold" : "red"}>
                     {connected ? "CONNECTED" : connecting ? "CONNECTING..." : "DISCONNECTED"}
                 </Tag>
 
-                <Button icon={<ReloadOutlined />} onClick={loadList}>
+                <Button icon={<ReloadOutlined/>} onClick={loadList}>
                     Обновить данные
                 </Button>
             </Space>
@@ -726,8 +730,8 @@ const DragonTable = () => {
                 columns={columns}
                 dataSource={data}
                 loading={loadingTable}
-                pagination={{ pageSize: 10, showSizeChanger: true }}
-                scroll={{ x: 1400 }}
+                pagination={{pageSize: 10, showSizeChanger: true}}
+                scroll={{x: 1400}}
                 size="middle"
                 onRow={getRowProps}
             />

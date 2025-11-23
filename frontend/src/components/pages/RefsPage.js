@@ -1,10 +1,10 @@
 import React from 'react';
-import { Layout, Card, Row, Col, Button, Typography } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import {Button, Card, Col, Layout, Row, Typography} from 'antd';
+import {useNavigate} from 'react-router-dom';
 
 
-const { Content } = Layout;
-const { Title } = Typography;
+const {Content} = Layout;
+const {Title} = Typography;
 
 const RefsPage = () => {
     const navigate = useNavigate();
@@ -44,10 +44,10 @@ const RefsPage = () => {
 
 
     return (
-        <Layout style={{ padding: '20px', background: '#fff' }}>
+        <Layout style={{padding: '20px', background: '#fff'}}>
 
             <Content>
-                <Title level={2} style={{ marginBottom: '30px', textAlign: 'center' }}>
+                <Title level={2} style={{marginBottom: '30px', textAlign: 'center'}}>
                     Управление справочниками
                 </Title>
 
@@ -56,11 +56,11 @@ const RefsPage = () => {
                         <Col xs={24} sm={12} lg={8} key={entity.key}>
                             <Card
                                 title={entity.title}
-                                style={{ height: '120px', cursor: 'pointer' }}
+                                style={{height: '120px', cursor: 'pointer'}}
                                 onClick={() => navigate(entity.route)}
                                 hoverable
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                                     <span>{entity.description}</span>
                                     <Button type="primary">Перейти</Button>
                                 </div>

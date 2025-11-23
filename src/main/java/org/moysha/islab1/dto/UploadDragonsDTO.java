@@ -9,12 +9,19 @@ public class UploadDragonsDTO {
     @JsonAlias({"dragonsJson", "dragons_json"})
     private String dragonsJson;
 
-    public UploadDragonsDTO() {}
+    public UploadDragonsDTO() {
+    }
 
-    public String getDragonsJson() { return dragonsJson; }
-    public void setDragonsJson(String dragonsJson) { this.dragonsJson = dragonsJson; }
+    public String getDragonsJson() {
+        return dragonsJson;
+    }
 
-    @Override public String toString() {
+    public void setDragonsJson(String dragonsJson) {
+        this.dragonsJson = dragonsJson;
+    }
+
+    @Override
+    public String toString() {
         return "UploadDragonsDTO(dragonsJson=" + dragonsJson + ")";
     }
 }
