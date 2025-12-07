@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.moysha.islab1.unums.Color;
 import org.moysha.islab1.unums.Country;
 
@@ -17,6 +19,8 @@ import org.moysha.islab1.unums.Country;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Cacheable
+@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 public class Person {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -11,7 +11,7 @@ description = "IsLab1"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(19)
     }
 
 }
@@ -34,6 +34,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
 
@@ -45,6 +46,7 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok")
 
     implementation("org.apache.commons:commons-lang3:3.18.0")
+    implementation("org.apache.commons:commons-dbcp2:2.12.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
@@ -56,6 +58,10 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
+    implementation("org.hibernate.orm:hibernate-jcache")
+    implementation("org.infinispan:infinispan-jcache:15.2.5.Final")
+    implementation("org.infinispan:infinispan-hibernate-cache-v62:15.2.5.Final")
+    implementation("io.minio:minio:8.5.11")
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
@@ -70,6 +76,3 @@ tasks.withType<JavaCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
-
-
-

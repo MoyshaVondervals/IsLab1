@@ -2,6 +2,7 @@ package org.moysha.islab1.services;
 
 
 import lombok.RequiredArgsConstructor;
+import org.moysha.islab1.cache.LogCacheStats;
 import org.moysha.islab1.dto.*;
 import org.moysha.islab1.exceptions.MessageException;
 import org.moysha.islab1.models.*;
@@ -11,7 +12,6 @@ import org.moysha.islab1.unums.DragonType;
 import org.moysha.islab1.utils.JsonParser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -35,12 +35,11 @@ public class DragonService {
     private final CavesRepository cavesRepository;
     private final HeadRepository headRepository;
     private final PersonRepository personRepository;
-    private final SimpMessagingTemplate template;
     private final JsonParser jsonParser;
     private final HistoryService historyService;
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ResponseEntity<String> createDragon(NewDragonResp request) {
 
         System.err.println(request);
@@ -102,22 +101,20 @@ public class DragonService {
                 .type(request.getType())
                 .head(head)
                 .build();
-        try {
-            System.err.println(dragon);
-            dragonRepository.save(dragon);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Не сохранилось, хз поч");
-        }
+        System.err.println(dragon);
+        dragonRepository.save(dragon);
         return ResponseEntity.status(HttpStatus.CREATED).body("Дракон сохранен");
 
     }
 
 
+    @LogCacheStats
     public List<Dragon> getAllDragons() {
 
         return dragonRepository.findAll();
     }
 
+    @LogCacheStats
     public Dragon getDragonById(Long id) {
         return dragonRepository.findById(id).orElse(null);
     }
@@ -205,7 +202,7 @@ public class DragonService {
     }
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, propagation = Propagation.REQUIRED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED)
     public void deleteDragon(Long id) {
         Dragon dragon = dragonRepository.findById(id)
                 .orElseThrow(() -> new MessageException("Dragon not found"));
@@ -279,6 +276,7 @@ public class DragonService {
         return avgAge / dragons.size();
     }
 
+    @LogCacheStats
     public DragonDTO findDragonWithMaxCave() {
         List<Dragon> dragon = dragonRepository.findDragonWithDeepestCave();
         Dragon dragon1 = dragon.get(0);
@@ -287,6 +285,7 @@ public class DragonService {
     }
 
 
+    @LogCacheStats
     public List<DragonDTO> findDragonsWithHeadGreater(long size) {
         List<Dragon> dragons = dragonRepository
                 .findAllByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
@@ -296,13 +295,14 @@ public class DragonService {
     }
 
 
+    @LogCacheStats
     public DragonDTO getOldestDragon() {
         Dragon dragon = dragonRepository.findFirstByOrderByAgeDescIdAsc();
         return convertToDTO(dragon);
 
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public Dragon killDragon(Long dragonId, Long killerId) {
         Dragon dragon = dragonRepository.findById(dragonId)
                 .orElseThrow(() -> new MessageException("Дракон не найден: " + dragonId));
@@ -394,10 +394,8 @@ public class DragonService {
     }
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    public ResponseEntity<String> uploadDragon(String json) throws Exception {
-
-//        try {
+    @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.MANDATORY)
+    public int uploadDragon(String json, ImportAuditMetadata metadata) throws Exception {
         List<NewDragonResp> dragonDtoList = jsonParser.parseJson(json);
         for (NewDragonResp dragon : dragonDtoList) {
             dragon.setCave(jsonParser.resolveDragonCave(dragon.getCave()));
@@ -408,14 +406,8 @@ public class DragonService {
             createDragon(dragon);
 
         }
-        List<Dragon> dragonList = getAllDragons();
-
-        historyService.addImport(dragonList.size());
-        template.convertAndSend("/topic/echo", dragonList);
-
-
-        return new ResponseEntity<>(HttpStatus.OK);
-
+        historyService.addImport(dragonDtoList.size(), metadata);
+        return dragonDtoList.size();
     }
 
 }
