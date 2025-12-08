@@ -2,7 +2,10 @@ package org.moysha.islab1.models;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Entity
@@ -17,11 +20,11 @@ public class DragonHead {
     private Long id;
 
     @Positive(message = "Size must be positive")
-    private long size;
+    private Long size;
 
     @Positive(message = "Eyes count must be positive")
-    private int eyesCount;
+    private Integer eyesCount;
 
     @Positive(message = "Tooth count must be positive")
-    private int toothCount;
+    private Integer toothCount;
 }

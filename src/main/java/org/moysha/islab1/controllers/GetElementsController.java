@@ -1,16 +1,19 @@
 package org.moysha.islab1.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.media.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.*;
 import org.moysha.islab1.services.*;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -26,6 +29,7 @@ public class GetElementsController {
     private final PersonService personService;
     private final LocationService locationService;
     private final HeadService headService;
+    private final HistoryService historyService;
 
     @Operation(summary = "Получить пещеры", operationId = "getCaves")
     @ApiResponse(responseCode = "200", description = "OK",
@@ -71,4 +75,13 @@ public class GetElementsController {
         System.err.println("GET HEADS");
         return ResponseEntity.ok(headService.getAllHeads());
     }
+
+    @Operation(summary = "Получить историю импортов", operationId = "getHistory")
+    @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(array = @ArraySchema(schema = @Schema(implementation = HistoryDTO.class))))
+    @GetMapping("/getHistory")
+    public ResponseEntity<List<HistoryDTO>> getHistory() {
+        return historyService.getHistory();
+    }
+
 }

@@ -1,11 +1,11 @@
 package org.moysha.islab1.controllers;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.media.*;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.*;
@@ -13,8 +13,10 @@ import org.moysha.islab1.models.*;
 import org.moysha.islab1.services.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
@@ -40,11 +42,10 @@ public class CreateController {
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createCoordinates")
     public ResponseEntity<?> createCoordinates(
-            @RequestBody(description = "Координаты", required = true,
-                    content = @Content(schema = @Schema(implementation = CoordinatesDTO.class)))
-            @org.springframework.web.bind.annotation.RequestBody @Valid CoordinatesDTO coordinatesDTO) {
+            @RequestBody @Valid CoordinatesDTO coordinatesDTO) {
         try {
             Coordinates coordinates = coordinatesDTO.toEntity();
+
             Coordinates savedCoordinates = coordinatesService.save(coordinates);
             return ResponseEntity.status(HttpStatus.CREATED).body(coordinatesDTO);
         } catch (Exception e) {
@@ -63,9 +64,7 @@ public class CreateController {
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createCave")
     public ResponseEntity<?> createCave(
-            @RequestBody(description = "Пещера дракона", required = true,
-                    content = @Content(schema = @Schema(implementation = DragonCaveDTO.class)))
-            @org.springframework.web.bind.annotation.RequestBody @Valid DragonCaveDTO caveDTO) {
+            @RequestBody @Valid DragonCaveDTO caveDTO) {
         try {
             DragonCave cave = caveDTO.toEntity();
             DragonCave savedCave = caveService.save(cave);
@@ -86,9 +85,8 @@ public class CreateController {
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createLocation")
     public ResponseEntity<?> createLocation(
-            @RequestBody(description = "Локация", required = true,
-                    content = @Content(schema = @Schema(implementation = LocationDTO.class)))
-            @org.springframework.web.bind.annotation.RequestBody @Valid LocationDTO locationDTO) {
+
+            @RequestBody @Valid LocationDTO locationDTO) {
         try {
             Location location = locationDTO.toEntity();
             Location savedLocation = locationService.save(location);
@@ -109,9 +107,8 @@ public class CreateController {
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createHead")
     public ResponseEntity<?> createHead(
-            @RequestBody(description = "Голова дракона", required = true,
-                    content = @Content(schema = @Schema(implementation = DragonHeadDTO.class)))
-            @org.springframework.web.bind.annotation.RequestBody @Valid DragonHeadDTO headDTO) {
+
+            @RequestBody @Valid DragonHeadDTO headDTO) {
         try {
             DragonHead head = headDTO.toEntity();
             DragonHead savedHead = headService.save(head);
@@ -132,9 +129,8 @@ public class CreateController {
             content = @Content(schema = @Schema(implementation = String.class)))
     @PostMapping("/createPerson")
     public ResponseEntity<?> createPerson(
-            @RequestBody(description = "Персонаж", required = true,
-                    content = @Content(schema = @Schema(implementation = PersonDTO.class)))
-            @org.springframework.web.bind.annotation.RequestBody PersonDTO personDTO) {
+
+            @RequestBody PersonDTO personDTO) {
         System.err.println("Получен DTO: " + personDTO);
         try {
             Location location = null;

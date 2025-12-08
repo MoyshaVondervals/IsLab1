@@ -15,8 +15,7 @@ public class MessageExceptionHandler {
     @ExceptionHandler(MessageException.class)
     public ResponseEntity<Object> handleUserAlreadyExists(MessageException ex) {
         Map<String, Object> error = new HashMap<>();
-        error.put("message", ex.getMessage());
-
+        error.put("data", ex.getMessage());
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 

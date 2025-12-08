@@ -2,8 +2,10 @@ package org.moysha.islab1.models;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Positive;
-import lombok.*;
-
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Entity

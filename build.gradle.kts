@@ -13,6 +13,7 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
+
 }
 
 
@@ -53,6 +54,11 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.20.1")
+
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
 }
 
 

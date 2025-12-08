@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Table, Button, Space, Modal, Form, InputNumber, Typography, Card, Tag, Alert } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, Form, InputNumber, Modal, Space, Table, Tag, Typography} from 'antd';
+import {PlusOutlined} from '@ant-design/icons';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
 
-import { GetApi, CreateApi, DeleteApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
+import {CreateApi, DeleteApi, GetApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-const { Title, Text } = Typography;
+const {Title, Text} = Typography;
 
 const getApi = new GetApi(apiConfig);
 const createApi = new CreateApi(apiConfig);
@@ -37,7 +37,7 @@ const CavesPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -86,8 +86,8 @@ const CavesPage = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const { data: caves } = await getApi.getCaves({
-                headers: { Authorization: `Bearer ${token}` },
+            const {data: caves} = await getApi.getCaves({
+                headers: {Authorization: `Bearer ${token}`},
             });
             setData(caves || []);
         } catch (error) {
@@ -160,12 +160,12 @@ const CavesPage = () => {
     }, [token]);
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{padding: '20px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
                 <Title level={3}>Управление пещерами</Title>
                 <Space>
                     <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                    <Button type="primary" icon={<PlusOutlined/>} onClick={() => setModalVisible(true)}>
                         Добавить пещеру
                     </Button>
                 </Space>
@@ -177,7 +177,7 @@ const CavesPage = () => {
                     dataSource={data}
                     loading={loading}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
+                    pagination={{pageSize: 10}}
                 />
             </Card>
 
@@ -212,7 +212,7 @@ const CavesPage = () => {
                         ]}
                     >
                         <InputNumber
-                            style={{ width: '100%' }}
+                            style={{width: '100%'}}
                             min={0}
                             step={0.1}
                             placeholder="Оставьте пустым для null"
@@ -221,10 +221,10 @@ const CavesPage = () => {
                 </Form>
             </Modal>
 
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

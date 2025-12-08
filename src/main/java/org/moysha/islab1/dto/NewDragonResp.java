@@ -43,5 +43,4 @@ public class NewDragonResp {
     DragonHead head;
 
 
-
 }

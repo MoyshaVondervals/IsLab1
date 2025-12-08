@@ -2,15 +2,14 @@ package org.moysha.islab1.services;
 
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.AuthRespForm;
-import org.moysha.islab1.dto.JwtAuthenticationResponse;
 import org.moysha.islab1.dto.SignInRequest;
 import org.moysha.islab1.dto.SignUpRequest;
 import org.moysha.islab1.models.User;
+import org.moysha.islab1.unums.Role;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -27,16 +26,15 @@ public class AuthenticationService {
         var user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER)
                 .build();
 
         userService.create(user);
 
         var jwt = jwtService.generateToken(user);
-        return new ResponseEntity<>(new AuthRespForm(jwt, request.getUsername()), HttpStatus.OK);
+        return new ResponseEntity<>(new AuthRespForm(jwt, request.getUsername(), Role.USER), HttpStatus.OK);
 
     }
-
-
 
 
     public ResponseEntity<AuthRespForm> signIn(SignInRequest request) {
@@ -49,7 +47,9 @@ public class AuthenticationService {
                 .userDetailsService()
                 .loadUserByUsername(request.getUsername());
 
+
         var jwt = jwtService.generateToken(user);
-        return new ResponseEntity<>(new AuthRespForm(jwt, request.getUsername()), HttpStatus.OK);
+        User userDetails = userService.getByUsername(request.getUsername());
+        return new ResponseEntity<>(new AuthRespForm(jwt, request.getUsername(), userDetails.getRole()), HttpStatus.OK);
     }
 }

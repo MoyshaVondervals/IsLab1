@@ -1,7 +1,7 @@
 import './App.css';
 import './styles/styles.css';
-import { Route, Routes, BrowserRouter } from "react-router-dom";
-import {Button, ConfigProvider, notification, Space} from "antd";
+import {BrowserRouter, Route, Routes} from "react-router-dom";
+import {ConfigProvider} from "antd";
 
 import RegisterPage from "./components/pages/authorityPages/register-page";
 import LoginPage from "./components/pages/authorityPages/login-page";
@@ -16,8 +16,7 @@ import PersonsPage from "./components/pages/PersonsPage";
 import LocationsPage from "./components/pages/LocationsPage";
 import HeadsPage from "./components/pages/HeadsPage";
 import DragonOperationsPage from "./components/pages/DragonOperationsPage";
-import 'antd/dist/reset.css';
-
+import HistoryPage from "./components/pages/HistoryPage";
 
 
 function App() {
@@ -25,38 +24,39 @@ function App() {
 
     return (
 
-            <ConfigProvider
-                theme={{
-                    token: {
-                        colorPrimary: "#1f39a0",
-                        colorSuccess: "#1fa038",
-                        colorError: "#e3401b",
-                    },
-                }}
-            >
-                <div className="App">
+        <ConfigProvider
+            theme={{
+                token: {
+                    colorPrimary: "#1f39a0",
+                    colorSuccess: "#1fa038",
+                    colorError: "#e3401b",
+                },
+            }}
+        >
+            <div className="App">
 
-                    <BrowserRouter>
-                        <Header />
+                <BrowserRouter>
+                    <Header/>
 
-                        <Routes>
+                    <Routes>
 
-                            <Route path="/" element={<LoginPage />} />
-                            <Route path="/auth/sign-up" element={<RegisterPage />} />
-                            <Route path="/dragons" element={<PrivateRoute element={<Dragons />} />} />
-                            <Route path="/dragons/:id" element={<PrivateRoute element={<DragonDetail />} />} />
-                            <Route path="/refs" element={<PrivateRoute element={<WsEchoDemo />} />} />
-                            <Route path="/coordinates" element={<PrivateRoute element={<CoordinatesPage />} />} />
-                            <Route path="/caves" element={<PrivateRoute element={<CavesPage />} />} />
-                            <Route path="/persons" element={<PrivateRoute element={<PersonsPage />} />} />
-                            <Route path="/heads" element={<PrivateRoute element={<HeadsPage />} />} />
-                            <Route path="/locations" element={<PrivateRoute element={<LocationsPage />} />} />
-                            <Route path="/operations" element={<PrivateRoute element={<DragonOperationsPage />} />} />
-                        </Routes>
+                        <Route path="/" element={<LoginPage/>}/>
+                        <Route path="/auth/sign-up" element={<RegisterPage/>}/>
+                        <Route path="/dragons" element={<PrivateRoute element={<Dragons/>}/>}/>
+                        <Route path="/dragons/:id" element={<PrivateRoute element={<DragonDetail/>}/>}/>
+                        <Route path="/refs" element={<PrivateRoute element={<WsEchoDemo/>}/>}/>
+                        <Route path="/coordinates" element={<PrivateRoute element={<CoordinatesPage/>}/>}/>
+                        <Route path="/caves" element={<PrivateRoute element={<CavesPage/>}/>}/>
+                        <Route path="/persons" element={<PrivateRoute element={<PersonsPage/>}/>}/>
+                        <Route path="/heads" element={<PrivateRoute element={<HeadsPage/>}/>}/>
+                        <Route path="/locations" element={<PrivateRoute element={<LocationsPage/>}/>}/>
+                        <Route path="/operations" element={<PrivateRoute element={<DragonOperationsPage/>}/>}/>
+                        <Route path="/history" element={<PrivateRoute element={<HistoryPage/>}/>}/>
+                    </Routes>
 
-                    </BrowserRouter>
-                </div>
-            </ConfigProvider>
+                </BrowserRouter>
+            </div>
+        </ConfigProvider>
 
     );
 }

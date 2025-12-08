@@ -1,14 +1,13 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Typography} from 'antd';
+import {PlusOutlined, ReloadOutlined} from '@ant-design/icons';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Table, Button, Space, Modal, Form, InputNumber, Input, Typography, Card, Alert } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import {CreateApi, DeleteApi, GetApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-import { GetApi, CreateApi, DeleteApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
-
-const { Title } = Typography;
+const {Title} = Typography;
 
 const getApi = new GetApi(apiConfig);
 const createApi = new CreateApi(apiConfig);
@@ -38,7 +37,7 @@ const HeadsPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -53,7 +52,6 @@ const HeadsPage = () => {
     }, []);
 
 
-
     const [filters, setFilters] = useState({
         id: '',
         size: '',
@@ -62,7 +60,7 @@ const HeadsPage = () => {
     });
 
     const handleFilterChange = (key, value) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({...prev, [key]: value}));
     };
 
     const resetFilters = () => {
@@ -92,7 +90,7 @@ const HeadsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.id}
                         onChange={(e) => handleFilterChange('id', e.target.value)}
                     />
@@ -109,7 +107,7 @@ const HeadsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.size}
                         onChange={(e) => handleFilterChange('size', e.target.value)}
                     />
@@ -126,7 +124,7 @@ const HeadsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.eyesCount}
                         onChange={(e) => handleFilterChange('eyesCount', e.target.value)}
                     />
@@ -143,7 +141,7 @@ const HeadsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.toothCount}
                         onChange={(e) => handleFilterChange('toothCount', e.target.value)}
                     />
@@ -170,8 +168,8 @@ const HeadsPage = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const { data: heads } = await getApi.getHeads({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data: heads} = await getApi.getHeads({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setData(heads || []);
         } catch (error) {
@@ -243,15 +241,15 @@ const HeadsPage = () => {
     }, [token]);
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{padding: '20px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
                 <Title level={3}>Управление головами драконов</Title>
                 <Space>
                     <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
-                    <Button icon={<ReloadOutlined />} onClick={resetFilters}>
+                    <Button icon={<ReloadOutlined/>} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                    <Button type="primary" icon={<PlusOutlined/>} onClick={() => setModalVisible(true)}>
                         Добавить голову
                     </Button>
                 </Space>
@@ -263,7 +261,7 @@ const HeadsPage = () => {
                     dataSource={filteredData}
                     loading={loading}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
+                    pagination={{pageSize: 10}}
                 />
             </Card>
 
@@ -284,42 +282,42 @@ const HeadsPage = () => {
                         name="size"
                         label="Размер головы"
                         rules={[
-                            { required: true, message: 'Введите размер' },
-                            { type: 'number', min: 1, message: 'Размер должен быть больше 0' }
+                            {required: true, message: 'Введите размер'},
+                            {type: 'number', min: 1, message: 'Размер должен быть больше 0'}
                         ]}
                     >
-                        <InputNumber style={{ width: '100%' }} min={1} placeholder="Размер в мм" />
+                        <InputNumber style={{width: '100%'}} min={1} placeholder="Размер в мм"/>
                     </Form.Item>
 
                     <Form.Item
                         name="eyesCount"
                         label="Количество глаз"
                         rules={[
-                            { required: true, message: 'Введите количество глаз' },
-                            { type: 'number', min: 1, message: 'Количество глаз должно быть больше 0' }
+                            {required: true, message: 'Введите количество глаз'},
+                            {type: 'number', min: 1, message: 'Количество глаз должно быть больше 0'}
                         ]}
                     >
-                        <InputNumber style={{ width: '100%' }} min={1} placeholder="Целое число" />
+                        <InputNumber style={{width: '100%'}} min={1} placeholder="Целое число"/>
                     </Form.Item>
 
                     <Form.Item
                         name="toothCount"
                         label="Количество зубов"
                         rules={[
-                            { required: true, message: 'Введите количество зубов' },
-                            { type: 'number', min: 1, message: 'Количество зубов должно быть больше 0' }
+                            {required: true, message: 'Введите количество зубов'},
+                            {type: 'number', min: 1, message: 'Количество зубов должно быть больше 0'}
                         ]}
                     >
-                        <InputNumber style={{ width: '100%' }} min={1} placeholder="Целое число" />
+                        <InputNumber style={{width: '100%'}} min={1} placeholder="Целое число"/>
                     </Form.Item>
                 </Form>
             </Modal>
 
             {/* Панель уведомлений внизу */}
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

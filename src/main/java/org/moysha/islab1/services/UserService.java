@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository repository;
+
     public User save(User user) {
         return repository.save(user);
     }
@@ -39,7 +40,6 @@ public class UserService {
         var username = SecurityContextHolder.getContext().getAuthentication().getName();
         return getByUsername(username);
     }
-
 
 
 }

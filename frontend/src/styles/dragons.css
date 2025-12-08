@@ -99,3 +99,9 @@
         grid-template-columns: 1fr;
     }
 }
+
+.logo {
+    width: 200px;
+    height: auto;
+    display: block;
+}

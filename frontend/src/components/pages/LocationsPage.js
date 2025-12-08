@@ -1,14 +1,13 @@
+import React, {useEffect, useRef, useState} from 'react';
+import {Alert, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tag, Typography} from 'antd';
+import {PlusOutlined, ReloadOutlined} from '@ant-design/icons';
+import {useNavigate} from 'react-router-dom';
+import {useSelector} from 'react-redux';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Table, Button, Space, Modal, Form, Input, InputNumber, Typography, Card, Tag, Alert } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import {CreateApi, DeleteApi, GetApi} from '../../api';
+import {apiConfig} from '../../apiConfig';
 
-import { GetApi, CreateApi, DeleteApi } from '../../api';
-import { apiConfig } from '../../apiConfig';
-
-const { Title, Text } = Typography;
+const {Title, Text} = Typography;
 
 const getApi = new GetApi(apiConfig);
 const createApi = new CreateApi(apiConfig);
@@ -38,7 +37,7 @@ const LocationsPage = () => {
 
     const notify = (type, content, durationMs = 5000) => {
         const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-        setNotices((prev) => [...prev, { id, type, content }]);
+        setNotices((prev) => [...prev, {id, type, content}]);
         if (durationMs > 0) {
             const t = setTimeout(() => removeNotice(id), durationMs);
             timersRef.current[id] = t;
@@ -53,7 +52,6 @@ const LocationsPage = () => {
     }, []);
 
 
-
     const [filters, setFilters] = useState({
         id: '',
         x: '',
@@ -63,7 +61,7 @@ const LocationsPage = () => {
     });
 
     const handleFilterChange = (key, value) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
+        setFilters((prev) => ({...prev, [key]: value}));
     };
 
     const resetFilters = () => {
@@ -96,7 +94,7 @@ const LocationsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.id}
                         onChange={(e) => handleFilterChange('id', e.target.value)}
                     />
@@ -113,7 +111,7 @@ const LocationsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.x}
                         onChange={(e) => handleFilterChange('x', e.target.value)}
                     />
@@ -130,7 +128,7 @@ const LocationsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.y}
                         onChange={(e) => handleFilterChange('y', e.target.value)}
                     />
@@ -147,7 +145,7 @@ const LocationsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.z}
                         onChange={(e) => handleFilterChange('z', e.target.value)}
                     />
@@ -164,7 +162,7 @@ const LocationsPage = () => {
                     <Input
                         size="small"
                         placeholder="Фильтр"
-                        style={{ marginTop: 6 }}
+                        style={{marginTop: 6}}
                         value={filters.name}
                         onChange={(e) => handleFilterChange('name', e.target.value)}
                     />
@@ -189,8 +187,8 @@ const LocationsPage = () => {
     const loadData = async () => {
         setLoading(true);
         try {
-            const { data: locations } = await getApi.getLocations({
-                headers: { Authorization: `Bearer ${token}` }
+            const {data: locations} = await getApi.getLocations({
+                headers: {Authorization: `Bearer ${token}`}
             });
             setData(locations ?? []);
         } catch (_error) {
@@ -260,15 +258,15 @@ const LocationsPage = () => {
     }, [token]);
 
     return (
-        <div style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+        <div style={{padding: '20px'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
                 <Title level={3}>Управление локациями</Title>
                 <Space>
                     <Button onClick={() => navigate('/refs')}>Назад к справочникам</Button>
-                    <Button icon={<ReloadOutlined />} onClick={resetFilters}>
+                    <Button icon={<ReloadOutlined/>} onClick={resetFilters}>
                         Сбросить фильтры
                     </Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                    <Button type="primary" icon={<PlusOutlined/>} onClick={() => setModalVisible(true)}>
                         Добавить локацию
                     </Button>
                 </Space>
@@ -280,8 +278,8 @@ const LocationsPage = () => {
                     dataSource={filteredData}
                     loading={loading}
                     rowKey="id"
-                    pagination={{ pageSize: 10 }}
-                    scroll={{ x: 900 }}
+                    pagination={{pageSize: 10}}
+                    scroll={{x: 900}}
                 />
             </Card>
 
@@ -299,26 +297,29 @@ const LocationsPage = () => {
                 width={500}
             >
                 <Form form={form} layout="vertical" onFinish={handleSave}>
-                    <Form.Item name="x" label="Координата X (обязательно)" rules={[{ required: true, message: 'Введите X' }]}>
-                        <InputNumber style={{ width: '100%' }} step={0.01} placeholder="Координата X" />
+                    <Form.Item name="x" label="Координата X (обязательно)"
+                               rules={[{required: true, message: 'Введите X'}]}>
+                        <InputNumber style={{width: '100%'}} step={0.01} placeholder="Координата X"/>
                     </Form.Item>
-                    <Form.Item name="y" label="Координата Y (обязательно)" rules={[{ required: true, message: 'Введите Y' }]}>
-                        <InputNumber style={{ width: '100%' }} step={0.01} placeholder="Координата Y" />
+                    <Form.Item name="y" label="Координата Y (обязательно)"
+                               rules={[{required: true, message: 'Введите Y'}]}>
+                        <InputNumber style={{width: '100%'}} step={0.01} placeholder="Координата Y"/>
                     </Form.Item>
-                    <Form.Item name="z" label="Координата Z (обязательно)" rules={[{ required: true, message: 'Введите Z' }]}>
-                        <InputNumber style={{ width: '100%' }} step={1} placeholder="Координата Z" />
+                    <Form.Item name="z" label="Координата Z (обязательно)"
+                               rules={[{required: true, message: 'Введите Z'}]}>
+                        <InputNumber style={{width: '100%'}} step={1} placeholder="Координата Z"/>
                     </Form.Item>
                     <Form.Item name="name" label="Название локации (можно оставить пустым)">
-                        <Input placeholder="Название локации" />
+                        <Input placeholder="Название локации"/>
                     </Form.Item>
                 </Form>
             </Modal>
 
             {/* Панель уведомлений внизу */}
-            <div style={{ marginTop: 16 }}>
+            <div style={{marginTop: 16}}>
                 {notices.length > 0 && (
                     <Card size="small" title={`Уведомления (${notices.length})`}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space direction="vertical" style={{width: '100%'}}>
                             {notices.map((n) => (
                                 <Alert
                                     key={n.id}

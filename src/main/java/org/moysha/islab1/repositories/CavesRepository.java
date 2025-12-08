@@ -7,7 +7,10 @@ import java.util.List;
 
 public interface CavesRepository extends JpaRepository<DragonCave, Long> {
     List<DragonCave> findAll();
+
     DragonCave findById(long id);
+
+    boolean existsById(long id);
 
 
 }
