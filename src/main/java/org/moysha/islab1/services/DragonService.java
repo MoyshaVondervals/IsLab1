@@ -2,6 +2,7 @@ package org.moysha.islab1.services;
 
 
 import lombok.RequiredArgsConstructor;
+import org.moysha.islab1.cache.LogCacheStats;
 import org.moysha.islab1.dto.*;
 import org.moysha.islab1.exceptions.MessageException;
 import org.moysha.islab1.models.*;
@@ -11,13 +12,13 @@ import org.moysha.islab1.unums.DragonType;
 import org.moysha.islab1.utils.JsonParser;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,89 +36,29 @@ public class DragonService {
     private final CavesRepository cavesRepository;
     private final HeadRepository headRepository;
     private final PersonRepository personRepository;
-    private final SimpMessagingTemplate template;
     private final JsonParser jsonParser;
     private final HistoryService historyService;
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ResponseEntity<String> createDragon(NewDragonResp request) {
-
-        System.err.println(request);
-        System.err.println(1);
-        if (dragonRepository.existsDragonByName(request.getName())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Дракон с таким именем уже существует");
-        }
-        Coordinates coordinates = request.getCoordinates();
-        DragonCave cave = request.getCave();
-        Person killer = request.getKiller();
-        DragonHead head = request.getHead();
-
-        System.err.println(1);
-        if (coordinates.getId() != null) {
-            System.err.println(111);
-            coordinates = coordinatesService.getCoordinatesById(coordinates.getId());
-            System.err.println(112);
-        } else {
-            System.err.println(121);
-            System.err.println(coordinates.getX() + " " + coordinates.getY());
-            System.err.println(coordinates.getX().getClass() + " " + coordinates.getY().getClass());
-            coordinatesService.checkNearCoordinates(coordinates);
-            System.err.println(122);
-        }
-
-        if (cave.getId() != null) {
-            cave = caveService.getCaveById(cave.getId());
-        }
-        if (killer != null) {
-            if (killer.getId() != null) {
-                killer = personService.getPersonById(killer.getId());
-            }
-        }
-
-
-        headService.existingHead(head);
-
-
-        if (request.getType() == DragonType.AIR && coordinates.getX() <= 0 && coordinates.getY() >= 0) {
-            throw new MessageException("Воздушные драконы не водятся во франции, они бьются головой об эйфелеву башню " + request.getName());
-        }
-        if (request.getType() == DragonType.WATER && coordinates.getX() >= 0 && coordinates.getY() <= 0) {
-            throw new MessageException("Водные драконы не водятся в италии, они растворяются в каналах венеции " + request.getName());
-        }
-        if (request.getType() == DragonType.UNDERGROUND && coordinates.getX() > 0 && coordinates.getY() > 0) {
-            throw new MessageException("Подземные драконы не водятся в северной корее, они врезаются в ракетные шахты " + request.getName());
-        }
-
-
-        Dragon dragon = Dragon.builder()
-                .name(request.getName())
-                .coordinates(coordinates)
-                .creationDate(LocalDateTime.now())
-                .cave(cave)
-                .killer(killer)
-                .age(request.getAge())
-                .description(request.getDescription())
-                .wingspan(request.getWingspan())
-                .type(request.getType())
-                .head(head)
-                .build();
         try {
-            System.err.println(dragon);
-            dragonRepository.save(dragon);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Не сохранилось, хз поч");
+            createDragonEntity(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Дракон сохранен");
+        } catch (MessageException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.CREATED).body("Дракон сохранен");
 
     }
 
 
+    @LogCacheStats
     public List<Dragon> getAllDragons() {
 
         return dragonRepository.findAll();
     }
 
+    @LogCacheStats
     public Dragon getDragonById(Long id) {
         return dragonRepository.findById(id).orElse(null);
     }
@@ -205,7 +146,7 @@ public class DragonService {
     }
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE, propagation = Propagation.REQUIRED)
+    @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.REQUIRED)
     public void deleteDragon(Long id) {
         Dragon dragon = dragonRepository.findById(id)
                 .orElseThrow(() -> new MessageException("Dragon not found"));
@@ -279,6 +220,7 @@ public class DragonService {
         return avgAge / dragons.size();
     }
 
+    @LogCacheStats
     public DragonDTO findDragonWithMaxCave() {
         List<Dragon> dragon = dragonRepository.findDragonWithDeepestCave();
         Dragon dragon1 = dragon.get(0);
@@ -287,6 +229,7 @@ public class DragonService {
     }
 
 
+    @LogCacheStats
     public List<DragonDTO> findDragonsWithHeadGreater(long size) {
         List<Dragon> dragons = dragonRepository
                 .findAllByHead_SizeGreaterThanOrderByHead_SizeAsc(size);
@@ -296,13 +239,14 @@ public class DragonService {
     }
 
 
+    @LogCacheStats
     public DragonDTO getOldestDragon() {
         Dragon dragon = dragonRepository.findFirstByOrderByAgeDescIdAsc();
         return convertToDTO(dragon);
 
     }
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
+    @Transactional(isolation = Isolation.REPEATABLE_READ)
     public Dragon killDragon(Long dragonId, Long killerId) {
         Dragon dragon = dragonRepository.findById(dragonId)
                 .orElseThrow(() -> new MessageException("Дракон не найден: " + dragonId));
@@ -394,28 +338,90 @@ public class DragonService {
     }
 
 
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    public ResponseEntity<String> uploadDragon(String json) throws Exception {
-
-//        try {
+    @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.MANDATORY)
+    public UploadResult uploadDragon(String json, ImportAuditMetadata metadata) throws Exception {
         List<NewDragonResp> dragonDtoList = jsonParser.parseJson(json);
+        List<Dragon> created = new ArrayList<>();
         for (NewDragonResp dragon : dragonDtoList) {
             dragon.setCave(jsonParser.resolveDragonCave(dragon.getCave()));
             dragon.setCoordinates(jsonParser.resolveCoordinates(dragon.getCoordinates()));
             dragon.setHead(jsonParser.resolveDragonHead(dragon.getHead()));
             dragon.setKiller(jsonParser.resolvePerson(dragon.getKiller()));
 
-            createDragon(dragon);
+            created.add(createDragonEntity(dragon));
 
         }
-        List<Dragon> dragonList = getAllDragons();
+        historyService.addImport(dragonDtoList.size(), metadata);
+        return new UploadResult(dragonDtoList.size(), created);
+    }
 
-        historyService.addImport(dragonList.size());
-        template.convertAndSend("/topic/echo", dragonList);
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Dragon createDragonEntity(NewDragonResp request) {
+
+        System.err.println(request);
+        System.err.println(1);
+        if (dragonRepository.existsDragonByName(request.getName())) {
+            throw new MessageException("Дракон с таким именем уже существует");
+        }
+        Coordinates coordinates = request.getCoordinates();
+        DragonCave cave = request.getCave();
+        Person killer = request.getKiller();
+        DragonHead head = request.getHead();
+
+        System.err.println(1);
+        if (coordinates.getId() != null) {
+            System.err.println(111);
+            coordinates = coordinatesService.getCoordinatesById(coordinates.getId());
+            System.err.println(112);
+        } else {
+            System.err.println(121);
+            System.err.println(coordinates.getX() + " " + coordinates.getY());
+            System.err.println(coordinates.getX().getClass() + " " + coordinates.getY().getClass());
+            coordinatesService.checkNearCoordinates(coordinates);
+            System.err.println(122);
+        }
+
+        if (cave.getId() != null) {
+            cave = caveService.getCaveById(cave.getId());
+        }
+        if (killer != null) {
+            if (killer.getId() != null) {
+                killer = personService.getPersonById(killer.getId());
+            }
+        }
 
 
-        return new ResponseEntity<>(HttpStatus.OK);
+        headService.existingHead(head);
+
+
+        if (request.getType() == DragonType.AIR && coordinates.getX() <= 0 && coordinates.getY() >= 0) {
+            throw new MessageException("Воздушные драконы не водятся во франции, они бьются головой об эйфелеву башню " + request.getName());
+        }
+        if (request.getType() == DragonType.WATER && coordinates.getX() >= 0 && coordinates.getY() <= 0) {
+            throw new MessageException("Водные драконы не водятся в италии, они растворяются в каналах венеции " + request.getName());
+        }
+        if (request.getType() == DragonType.UNDERGROUND && coordinates.getX() > 0 && coordinates.getY() > 0) {
+            throw new MessageException("Подземные драконы не водятся в северной корее, они врезаются в ракетные шахты " + request.getName());
+        }
+
+
+        Dragon dragon = Dragon.builder()
+                .name(request.getName())
+                .coordinates(coordinates)
+                .creationDate(LocalDateTime.now())
+                .cave(cave)
+                .killer(killer)
+                .age(request.getAge())
+                .description(request.getDescription())
+                .wingspan(request.getWingspan())
+                .type(request.getType())
+                .head(head)
+                .build();
+        System.err.println(dragon);
+        return dragonRepository.save(dragon);
 
     }
 
+    public record UploadResult(int importedCount, List<Dragon> createdDragons) {
+    }
 }

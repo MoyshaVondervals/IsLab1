@@ -2,7 +2,7 @@ name: Build & Deploy (Helios, no sudo)
 
 on:
   push:
-    branches: [ "lab2" ]
+    branches: [ "lab3" ]
   workflow_dispatch:
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
       - name: Install & Build Frontend
         working-directory: frontend
         env:
-          REACT_APP_API_URL: "http://127.0.0.1:8081/api"
+          REACT_APP_API_URL: "http://127.0.0.1:8054"
         run: |
           npm ci
           CI=false DISABLE_ESLINT_PLUGIN=true npm run build
@@ -111,6 +111,25 @@ jobs:
           SPRING_DATASOURCE_URL: ${{ secrets.SPRING_DATASOURCE_URL }}
           SPRING_DATASOURCE_USERNAME: ${{ secrets.SPRING_DATASOURCE_USERNAME }}
           SPRING_DATASOURCE_PASSWORD: ${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+          SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA: ${{ secrets.SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA }}
+          SPRING_FLYWAY_DEFAULT_SCHEMA: ${{ secrets.SPRING_FLYWAY_DEFAULT_SCHEMA }}
+          SPRING_FLYWAY_SCHEMAS: ${{ secrets.SPRING_FLYWAY_SCHEMAS }}
+          SPRING_FLYWAY_BASELINE_ON_MIGRATE: ${{ secrets.SPRING_FLYWAY_BASELINE_ON_MIGRATE }}
+          SPRING_FLYWAY_BASELINE_VERSION: ${{ secrets.SPRING_FLYWAY_BASELINE_VERSION }}
+          DBCP2_INITIAL_SIZE: ${{ secrets.DBCP2_INITIAL_SIZE }}
+          DBCP2_MAX_TOTAL: ${{ secrets.DBCP2_MAX_TOTAL }}
+          DBCP2_MAX_IDLE: ${{ secrets.DBCP2_MAX_IDLE }}
+          DBCP2_MIN_IDLE: ${{ secrets.DBCP2_MIN_IDLE }}
+          DBCP2_MAX_WAIT_MILLIS: ${{ secrets.DBCP2_MAX_WAIT_MILLIS }}
+          DBCP2_VALIDATION_QUERY: ${{ secrets.DBCP2_VALIDATION_QUERY }}
+          APP_STORAGE_ENDPOINT: ${{ secrets.APP_STORAGE_ENDPOINT }}
+          APP_STORAGE_ACCESS_KEY: ${{ secrets.APP_STORAGE_ACCESS_KEY }}
+          APP_STORAGE_SECRET_KEY: ${{ secrets.APP_STORAGE_SECRET_KEY }}
+          APP_STORAGE_BUCKET: ${{ secrets.APP_STORAGE_BUCKET }}
+          APP_STORAGE_REGION: ${{ secrets.APP_STORAGE_REGION }}
+          APP_STORAGE_SECURE: ${{ secrets.APP_STORAGE_SECURE }}
+          APP_STORAGE_PRESIGNED_TTL_SECONDS: ${{ secrets.APP_STORAGE_PRESIGNED_TTL_SECONDS }}
+          TOKEN_SIGNING_KEY: ${{ secrets.TOKEN_SIGNING_KEY }}
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'bash -s' <<'REMOTE'
           set -eEo pipefail
@@ -120,11 +139,30 @@ jobs:
 
           # .env (из секретов)
           cat > "$APP_DIR/.env" <<ENVEOF
-          SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE}
-          SERVER_PORT=${SERVER_PORT}
-          SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
-          SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
-          SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+          SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE}"
+          SERVER_PORT="${SERVER_PORT}"
+          SPRING_DATASOURCE_URL="${SPRING_DATASOURCE_URL}"
+          SPRING_DATASOURCE_USERNAME="${SPRING_DATASOURCE_USERNAME}"
+          SPRING_DATASOURCE_PASSWORD="${SPRING_DATASOURCE_PASSWORD}"
+          SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA="${SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA}"
+          SPRING_FLYWAY_DEFAULT_SCHEMA="${SPRING_FLYWAY_DEFAULT_SCHEMA:-$SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA}"
+          SPRING_FLYWAY_SCHEMAS="${SPRING_FLYWAY_SCHEMAS:-$SPRING_JPA_PROPERTIES_HIBERNATE_DEFAULT_SCHEMA}"
+          SPRING_FLYWAY_BASELINE_ON_MIGRATE="${SPRING_FLYWAY_BASELINE_ON_MIGRATE:-false}"
+          SPRING_FLYWAY_BASELINE_VERSION="${SPRING_FLYWAY_BASELINE_VERSION:-1}"
+          DBCP2_INITIAL_SIZE="${DBCP2_INITIAL_SIZE:-4}"
+          DBCP2_MAX_TOTAL="${DBCP2_MAX_TOTAL:-16}"
+          DBCP2_MAX_IDLE="${DBCP2_MAX_IDLE:-8}"
+          DBCP2_MIN_IDLE="${DBCP2_MIN_IDLE:-2}"
+          DBCP2_MAX_WAIT_MILLIS="${DBCP2_MAX_WAIT_MILLIS:-30000}"
+          DBCP2_VALIDATION_QUERY="${DBCP2_VALIDATION_QUERY:-SELECT 1}"
+          APP_STORAGE_ENDPOINT="${APP_STORAGE_ENDPOINT:-http://localhost:9000}"
+          APP_STORAGE_ACCESS_KEY="${APP_STORAGE_ACCESS_KEY:-minio}"
+          APP_STORAGE_SECRET_KEY="${APP_STORAGE_SECRET_KEY:-minio12345}"
+          APP_STORAGE_BUCKET="${APP_STORAGE_BUCKET:-dragon-imports}"
+          APP_STORAGE_REGION="${APP_STORAGE_REGION:-us-east-1}"
+          APP_STORAGE_SECURE="${APP_STORAGE_SECURE:-false}"
+          APP_STORAGE_PRESIGNED_TTL_SECONDS="${APP_STORAGE_PRESIGNED_TTL_SECONDS:-900}"
+          TOKEN_SIGNING_KEY="${TOKEN_SIGNING_KEY}"
           ENVEOF
 
           # start.sh (ищет JAR в current/ и прокидывает -Dspring.*)
@@ -261,7 +299,7 @@ jobs:
             APP="$HOME/apps/islab1"
             SITE="$APP/site"
             LOG="$APP/logs"
-            PORT="${FRONT_PORT:-8082}"
+            PORT="${FRONT_PORT:-8228}"
             if [ -f "$APP/site.pid" ] && ps -p "$(cat "$APP/site.pid" 2>/dev/null)" > /dev/null 2>&1; then
               echo "Static server already running, PID $(cat "$APP/site.pid")"; exit 0
             fi
@@ -292,5 +330,4 @@ jobs:
       - name: Start static server (idempotent)
         run: |
           ssh -i ~/.ssh/helios_key -p "${{ secrets.HELIOS_SSH_PORT }}" \
-            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" '~/apps/islab1/site_start.sh || true'
-
+            "${{ secrets.HELIOS_SSH_USER }}@${{ secrets.HELIOS_HOST }}" 'FRONT_PORT=8228 ~/apps/islab1/site_start.sh || true'

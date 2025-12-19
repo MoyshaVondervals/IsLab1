@@ -11,9 +11,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.moysha.islab1.dto.DragonDTO;
+import org.moysha.islab1.dto.ImportExecutionResult;
 import org.moysha.islab1.dto.NewDragonResp;
 import org.moysha.islab1.dto.UploadDragonsDTO;
 import org.moysha.islab1.models.Dragon;
+import org.moysha.islab1.services.DragonImportCoordinator;
 import org.moysha.islab1.services.DragonService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +33,7 @@ public class DragonController {
 
     private final SimpMessagingTemplate template;
     private final DragonService dragonService;
+    private final DragonImportCoordinator dragonImportCoordinator;
 
 
     @Operation(
@@ -127,12 +130,15 @@ public class DragonController {
             operationId = "uploadDragons"
     )
     @ApiResponse(responseCode = "201", description = "Объекты добавлены",
-            content = @Content(schema = @Schema(implementation = UploadDragonsDTO.class)))
+            content = @Content(schema = @Schema(implementation = ImportExecutionResult.class)))
     @ApiResponse(responseCode = "500", description = "Внутренняя ошибка")
-    @PostMapping(value = "/import/dragons", consumes = "application/json", produces = "text/plain")
-    public ResponseEntity<String> uploadDragons(@RequestBody UploadDragonsDTO dto) throws Exception {
-        System.err.println(dto.getDragonsJson());
-        return dragonService.uploadDragon(dto.getDragonsJson());
+    @PostMapping(value = "/import/dragons", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<ImportExecutionResult> uploadDragons(@RequestBody UploadDragonsDTO dto) throws Exception {
+        ImportExecutionResult result = dragonImportCoordinator.importPayload(
+                dto.getDragonsJson().getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                "api-dragons.json",
+                "application/json");
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
     }
 
     @Operation(

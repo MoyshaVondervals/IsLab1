@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<infinispan xmlns="urn:infinispan:config:14.0">
+    <cache-container name="hibernate" statistics="true">
+        <serialization marshaller="org.infinispan.commons.marshall.JavaSerializationMarshaller"/>
+        <local-cache name="entity">
+            <locking isolation="REPEATABLE_READ" acquire-timeout="15000" concurrency-level="1000"/>
+            <encoding media-type="application/x-java-object"/>
+            <memory max-count="20000" when-full="REMOVE"/>
+            <expiration max-idle="600000"/>
+        </local-cache>
+        <local-cache name="timestamps">
+            <encoding media-type="application/x-java-object"/>
+        </local-cache>
+        <local-cache name="query">
+            <locking isolation="REPEATABLE_READ" acquire-timeout="15000" concurrency-level="500"/>
+            <encoding media-type="application/x-java-object"/>
+            <memory max-count="5000" when-full="REMOVE"/>
+            <expiration max-idle="300000"/>
+        </local-cache>
+    </cache-container>
+</infinispan>

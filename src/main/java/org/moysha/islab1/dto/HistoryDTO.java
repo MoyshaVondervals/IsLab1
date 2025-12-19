@@ -18,4 +18,10 @@ public class HistoryDTO {
     private User operationOwner;
     private long affectedObjects;
     private LocalDateTime creationDate;
+    private String importFileName;
+    private String storageObjectKey;
+    private String storageBucket;
+    private Long fileSizeBytes;
+    private String storageStatus;
+    private String downloadPath;
 }
