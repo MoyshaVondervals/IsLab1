@@ -10,5 +10,5 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "app.cache")
 public class CacheLoggingProperties {
-    private boolean statsLoggingEnabled = false;
+    private boolean statsLoggingEnabled = true;
 }

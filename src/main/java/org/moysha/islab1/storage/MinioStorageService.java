@@ -27,6 +27,7 @@ public class MinioStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(MinioStorageService.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private static final int MAX_SAFE_NAME_LENGTH = 255;
 
     private final MinioClient minioClient;
     private final StorageProperties storageProperties;
@@ -88,6 +89,7 @@ public class MinioStorageService {
                     .build());
         } catch (Exception e) {
             log.warn("Failed to cleanup pending object {}", descriptor.pendingKey(), e);
+            throw new IllegalStateException("Pending object cleanup failed for " + descriptor.pendingKey(), e);
         }
     }
 
@@ -120,6 +122,11 @@ public class MinioStorageService {
         String normalized = originalFileName
                 .replaceAll("[^a-zA-Z0-9.\\-_]", "_")
                 .strip();
-        return StringUtils.hasText(normalized) ? normalized : "dragons-import.json";
+        if (!StringUtils.hasText(normalized)) {
+            return "dragons-import.json";
+        }
+        return normalized.length() > MAX_SAFE_NAME_LENGTH
+                ? normalized.substring(0, MAX_SAFE_NAME_LENGTH)
+                : normalized;
     }
 }

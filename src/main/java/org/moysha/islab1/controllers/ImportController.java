@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 
 @RestController
@@ -45,10 +48,11 @@ public class ImportController {
             content = @Content(schema = @Schema(implementation = ImportExecutionResult.class)))
     @PostMapping(value = "/dragons/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ImportExecutionResult> importDragons(@RequestPart("file") MultipartFile file) throws Exception {
-        if (file == null || file.isEmpty()) {
+        if (file.isEmpty()) {
             throw new MessageException("Файл импорта отсутствует");
         }
-        ImportExecutionResult result = importCoordinator.importPayload(file.getBytes(),
+        byte[] payload = readPayload(file);
+        ImportExecutionResult result = importCoordinator.importPayload(payload,
                 file.getOriginalFilename(),
                 file.getContentType());
         return ResponseEntity.status(HttpStatus.CREATED).body(result);
@@ -65,14 +69,45 @@ public class ImportController {
         if (history.getStorageObjectKey() == null) {
             throw new MessageException("Для этой записи отсутствует загруженный файл");
         }
-        InputStream inputStream = storageService.downloadObject(history.getStorageBucket(), history.getStorageObjectKey());
         String filename = history.getImportFileName() != null ? history.getImportFileName() : "dragons-import.json";
 
-        InputStreamResource resource = new InputStreamResource(inputStream);
-        return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + filename + "\"")
-                .body(resource);
+        InputStream inputStream = null;
+        try {
+            inputStream = storageService.downloadObject(history.getStorageBucket(), history.getStorageObjectKey());
+            InputStreamResource resource = new InputStreamResource(inputStream);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + filename + "\"")
+                    .body(resource);
+        } catch (Exception e) {
+            if (inputStream != null) {
+                inputStream.close();
+            }
+            throw e;
+        }
+    }
+
+    private byte[] readPayload(MultipartFile file) throws Exception {
+        long maxSize = DataSize.ofMegabytes(10).toBytes();
+        long reportedSize = file.getSize();
+        if (reportedSize > maxSize) {
+            throw new MessageException("Размер файла превышает лимит 10 МБ");
+        }
+
+        try (InputStream in = file.getInputStream();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            long totalRead = 0;
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                totalRead += read;
+                if (totalRead > maxSize) {
+                    throw new MessageException("Размер файла превышает лимит 10 МБ");
+                }
+                out.write(buffer, 0, read);
+            }
+            return out.toByteArray();
+        }
     }
 }

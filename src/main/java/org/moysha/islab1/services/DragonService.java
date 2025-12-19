@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,69 +42,12 @@ public class DragonService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public ResponseEntity<String> createDragon(NewDragonResp request) {
-
-        System.err.println(request);
-        System.err.println(1);
-        if (dragonRepository.existsDragonByName(request.getName())) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Дракон с таким именем уже существует");
+        try {
+            createDragonEntity(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Дракон сохранен");
+        } catch (MessageException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
-        Coordinates coordinates = request.getCoordinates();
-        DragonCave cave = request.getCave();
-        Person killer = request.getKiller();
-        DragonHead head = request.getHead();
-
-        System.err.println(1);
-        if (coordinates.getId() != null) {
-            System.err.println(111);
-            coordinates = coordinatesService.getCoordinatesById(coordinates.getId());
-            System.err.println(112);
-        } else {
-            System.err.println(121);
-            System.err.println(coordinates.getX() + " " + coordinates.getY());
-            System.err.println(coordinates.getX().getClass() + " " + coordinates.getY().getClass());
-            coordinatesService.checkNearCoordinates(coordinates);
-            System.err.println(122);
-        }
-
-        if (cave.getId() != null) {
-            cave = caveService.getCaveById(cave.getId());
-        }
-        if (killer != null) {
-            if (killer.getId() != null) {
-                killer = personService.getPersonById(killer.getId());
-            }
-        }
-
-
-        headService.existingHead(head);
-
-
-        if (request.getType() == DragonType.AIR && coordinates.getX() <= 0 && coordinates.getY() >= 0) {
-            throw new MessageException("Воздушные драконы не водятся во франции, они бьются головой об эйфелеву башню " + request.getName());
-        }
-        if (request.getType() == DragonType.WATER && coordinates.getX() >= 0 && coordinates.getY() <= 0) {
-            throw new MessageException("Водные драконы не водятся в италии, они растворяются в каналах венеции " + request.getName());
-        }
-        if (request.getType() == DragonType.UNDERGROUND && coordinates.getX() > 0 && coordinates.getY() > 0) {
-            throw new MessageException("Подземные драконы не водятся в северной корее, они врезаются в ракетные шахты " + request.getName());
-        }
-
-
-        Dragon dragon = Dragon.builder()
-                .name(request.getName())
-                .coordinates(coordinates)
-                .creationDate(LocalDateTime.now())
-                .cave(cave)
-                .killer(killer)
-                .age(request.getAge())
-                .description(request.getDescription())
-                .wingspan(request.getWingspan())
-                .type(request.getType())
-                .head(head)
-                .build();
-        System.err.println(dragon);
-        dragonRepository.save(dragon);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Дракон сохранен");
 
     }
 
@@ -395,19 +339,89 @@ public class DragonService {
 
 
     @Transactional(isolation = Isolation.REPEATABLE_READ, propagation = Propagation.MANDATORY)
-    public int uploadDragon(String json, ImportAuditMetadata metadata) throws Exception {
+    public UploadResult uploadDragon(String json, ImportAuditMetadata metadata) throws Exception {
         List<NewDragonResp> dragonDtoList = jsonParser.parseJson(json);
+        List<Dragon> created = new ArrayList<>();
         for (NewDragonResp dragon : dragonDtoList) {
             dragon.setCave(jsonParser.resolveDragonCave(dragon.getCave()));
             dragon.setCoordinates(jsonParser.resolveCoordinates(dragon.getCoordinates()));
             dragon.setHead(jsonParser.resolveDragonHead(dragon.getHead()));
             dragon.setKiller(jsonParser.resolvePerson(dragon.getKiller()));
 
-            createDragon(dragon);
+            created.add(createDragonEntity(dragon));
 
         }
         historyService.addImport(dragonDtoList.size(), metadata);
-        return dragonDtoList.size();
+        return new UploadResult(dragonDtoList.size(), created);
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Dragon createDragonEntity(NewDragonResp request) {
+
+        System.err.println(request);
+        System.err.println(1);
+        if (dragonRepository.existsDragonByName(request.getName())) {
+            throw new MessageException("Дракон с таким именем уже существует");
+        }
+        Coordinates coordinates = request.getCoordinates();
+        DragonCave cave = request.getCave();
+        Person killer = request.getKiller();
+        DragonHead head = request.getHead();
+
+        System.err.println(1);
+        if (coordinates.getId() != null) {
+            System.err.println(111);
+            coordinates = coordinatesService.getCoordinatesById(coordinates.getId());
+            System.err.println(112);
+        } else {
+            System.err.println(121);
+            System.err.println(coordinates.getX() + " " + coordinates.getY());
+            System.err.println(coordinates.getX().getClass() + " " + coordinates.getY().getClass());
+            coordinatesService.checkNearCoordinates(coordinates);
+            System.err.println(122);
+        }
+
+        if (cave.getId() != null) {
+            cave = caveService.getCaveById(cave.getId());
+        }
+        if (killer != null) {
+            if (killer.getId() != null) {
+                killer = personService.getPersonById(killer.getId());
+            }
+        }
+
+
+        headService.existingHead(head);
+
+
+        if (request.getType() == DragonType.AIR && coordinates.getX() <= 0 && coordinates.getY() >= 0) {
+            throw new MessageException("Воздушные драконы не водятся во франции, они бьются головой об эйфелеву башню " + request.getName());
+        }
+        if (request.getType() == DragonType.WATER && coordinates.getX() >= 0 && coordinates.getY() <= 0) {
+            throw new MessageException("Водные драконы не водятся в италии, они растворяются в каналах венеции " + request.getName());
+        }
+        if (request.getType() == DragonType.UNDERGROUND && coordinates.getX() > 0 && coordinates.getY() > 0) {
+            throw new MessageException("Подземные драконы не водятся в северной корее, они врезаются в ракетные шахты " + request.getName());
+        }
+
+
+        Dragon dragon = Dragon.builder()
+                .name(request.getName())
+                .coordinates(coordinates)
+                .creationDate(LocalDateTime.now())
+                .cave(cave)
+                .killer(killer)
+                .age(request.getAge())
+                .description(request.getDescription())
+                .wingspan(request.getWingspan())
+                .type(request.getType())
+                .head(head)
+                .build();
+        System.err.println(dragon);
+        return dragonRepository.save(dragon);
+
+    }
+
+    public record UploadResult(int importedCount, List<Dragon> createdDragons) {
+    }
 }

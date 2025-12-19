@@ -19,8 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @RequiredArgsConstructor
@@ -40,10 +41,10 @@ public class DragonImportCoordinator {
         MinioStorageParticipant storageParticipant =
                 new MinioStorageParticipant(storageService, descriptor, payload, contentType);
 
-        AtomicInteger importedCount = new AtomicInteger();
+        AtomicReference<DragonService.UploadResult> uploadResult = new AtomicReference<>();
 
         DatabaseTransactionParticipant.TransactionCallback callback =
-                () -> importedCount.set(dragonService.uploadDragon(new String(payload, StandardCharsets.UTF_8),
+                () -> uploadResult.set(dragonService.uploadDragon(new String(payload, StandardCharsets.UTF_8),
                         new ImportAuditMetadata(
                                 descriptor.bucket(),
                                 descriptor.finalKey(),
@@ -54,7 +55,7 @@ public class DragonImportCoordinator {
 
         DatabaseTransactionParticipant dbParticipant =
                 new DatabaseTransactionParticipant(transactionManager, callback,
-                        TransactionDefinition.ISOLATION_REPEATABLE_READ);
+                        TransactionDefinition.ISOLATION_READ_COMMITTED);
 
         List<TwoPhaseCommitParticipant> participants = List.of(storageParticipant, dbParticipant);
         TwoPhaseCommitManager manager = new TwoPhaseCommitManager(participants);
@@ -77,10 +78,16 @@ public class DragonImportCoordinator {
             }
         }
 
-        messagingTemplate.convertAndSend("/topic/echo", dragonService.getAllDragons());
+        DragonService.UploadResult result = uploadResult.get();
+        if (result != null && !result.createdDragons().isEmpty()) {
+            messagingTemplate.convertAndSend("/topic/echo", Map.of(
+                    "event", "dragonsImported",
+                    "dragons", result.createdDragons()
+            ));
+        }
 
         return new ImportExecutionResult(
-                importedCount.get(),
+                result != null ? result.importedCount() : 0,
                 descriptor.originalFileName(),
                 descriptor.finalKey(),
                 descriptor.bucket());
